@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
+const th = { background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '1px' }
+
 export default function Attendance() {
   const [members, setMembers] = useState([])
   const [events, setEvents] = useState([])
@@ -30,39 +32,21 @@ export default function Attendance() {
   })
 
   const calcRate = (memberId) => {
-    const memberEvents = filteredEvents.filter(e =>
-      filter === 'all' || e.category === filter || e.category === 'joint'
-    )
+    const memberEvents = filteredEvents.filter(e => filter === 'all' || e.category === filter || e.category === 'joint')
     if (memberEvents.length === 0) return { rate: 0, present: 0, total: 0 }
-    const memberAttendance = attendance.filter(a =>
-      a.member_id === memberId &&
-      memberEvents.map(e => e.id).includes(a.event_id) &&
-      a.status === 'present'
-    )
-    return {
-      rate: Math.round((memberAttendance.length / memberEvents.length) * 100),
-      present: memberAttendance.length,
-      total: memberEvents.length
-    }
+    const present = attendance.filter(a => a.member_id === memberId && memberEvents.map(e => e.id).includes(a.event_id) && a.status === 'present').length
+    return { rate: Math.round((present / memberEvents.length) * 100), present, total: memberEvents.length }
   }
 
-  const filteredMembers = members.filter(m =>
-    filter === 'all' || m.team === filter
-  )
-
-  const membersWithRate = filteredMembers.map(m => ({
-    ...m,
-    ...calcRate(m.id)
-  })).sort((a, b) => b.rate - a.rate)
-
+  const filteredMembers = members.filter(m => filter === 'all' || m.team === filter)
+  const membersWithRate = filteredMembers.map(m => ({ ...m, ...calcRate(m.id) })).sort((a, b) => b.rate - a.rate)
   const u40Members = membersWithRate.filter(m => m.team === 'u40')
   const o40Members = membersWithRate.filter(m => m.team === 'o40')
 
-  const totalEvents = filteredEvents.filter(e =>
-    filter === 'all' || e.category === filter || e.category === 'joint'
-  ).length
-
+  const totalEvents = filteredEvents.filter(e => filter === 'all' || e.category === filter || e.category === 'joint').length
   const avgRate = (list) => list.length === 0 ? 0 : Math.round(list.reduce((s, m) => s + m.rate, 0) / list.length)
+
+  const pctColor = (r) => r >= 70 ? '#27ae60' : r >= 50 ? '#f39c12' : '#e74c3c'
 
   const tabStyle = (val) => ({
     padding: '6px 16px', borderRadius: '20px', fontSize: '12.5px', fontWeight: '700', cursor: 'pointer', border: '2px solid',
@@ -71,39 +55,30 @@ export default function Attendance() {
     color: filter === val ? 'white' : '#8a7f7a',
   })
 
-  const progressColor = (rate) => {
-    if (rate >= 70) return '#27ae60'
-    if (rate >= 50) return '#f39c12'
-    return '#e74c3c'
-  }
-
   const AttendList = ({ list, color, title }) => (
     <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: '18px' }}>
-      <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#2a2220', marginBottom: '14px' }}>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1px', color: '#2a2220', marginBottom: '14px' }}>
         <span style={{ color }}>■</span> {title}
-        <span style={{ fontSize: '12px', color: '#8a7f7a', fontWeight: 'normal', marginLeft: '10px' }}>平均 {avgRate(list)}%</span>
+        <span style={{ fontSize: '12px', color: '#8a7f7a', fontWeight: 'normal', fontFamily: 'inherit', marginLeft: '10px' }}>平均 {avgRate(list)}%</span>
       </div>
-      {list.length === 0 ? (
-        <div style={{ color: '#8a7f7a', fontSize: '13px' }}>データがありません</div>
-      ) : list.map((m, i) => (
-        <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < list.length - 1 ? '1px solid #f0ebe5' : 'none', fontSize: '13px' }}>
-          <div style={{ width: '24px', textAlign: 'center', fontSize: '12px', color: '#8a7f7a', flexShrink: 0 }}>
-            {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`}
+      {list.length === 0 ? <div style={{ color: '#8a7f7a', fontSize: '13px' }}>データがありません</div> :
+        list.map((m, i) => (
+          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < list.length - 1 ? '1px solid #f0ebe5' : 'none', fontSize: '13px' }}>
+            <div style={{ width: '130px', fontWeight: '500', flexShrink: 0 }}>{m.name}</div>
+            <div style={{ flex: 1, background: '#e8e0d8', borderRadius: '99px', height: '7px', overflow: 'hidden' }}>
+              <div style={{ width: `${m.rate}%`, height: '100%', background: pctColor(m.rate), borderRadius: '99px', transition: 'width .3s' }} />
+            </div>
+            <div style={{ width: '40px', textAlign: 'right', fontWeight: '700', fontSize: '12.5px', color: pctColor(m.rate), flexShrink: 0 }}>{m.rate}%</div>
+            <div style={{ width: '55px', textAlign: 'right', fontSize: '11px', color: '#8a7f7a', flexShrink: 0 }}>{m.present}/{m.total}回</div>
           </div>
-          <div style={{ width: '120px', fontWeight: '500', flexShrink: 0 }}>{m.name}</div>
-          <div style={{ flex: 1, background: '#e8e0d8', borderRadius: '99px', height: '7px', overflow: 'hidden' }}>
-            <div style={{ width: `${m.rate}%`, height: '100%', background: progressColor(m.rate), borderRadius: '99px', transition: 'width .3s' }} />
-          </div>
-          <div style={{ width: '60px', textAlign: 'right', fontWeight: '700', fontSize: '12.5px', color: progressColor(m.rate), flexShrink: 0 }}>{m.rate}%</div>
-          <div style={{ width: '60px', textAlign: 'right', fontSize: '11px', color: '#8a7f7a', flexShrink: 0 }}>{m.present}/{m.total}回</div>
-        </div>
-      ))}
+        ))
+      }
     </div>
   )
 
   return (
-    <div style={{ fontFamily: 'sans-serif' }}>
-      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2a2220', letterSpacing: '2px', marginBottom: '20px' }}>
+    <div style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '2px', color: '#2a2220', marginBottom: '20px' }}>
         出席率ダッシュボード
       </div>
 
@@ -114,31 +89,26 @@ export default function Attendance() {
           <div style={tabStyle('o40')} onClick={() => setFilter('o40')}>O-40</div>
         </div>
         <select value={eventFilter} onChange={e => setEventFilter(e.target.value)}
-          style={{ padding: '6px 12px', border: '1.5px solid #e0dbd5', borderRadius: '20px', fontSize: '12.5px', fontWeight: '600', outline: 'none', cursor: 'pointer' }}>
+          style={{ padding: '6px 12px', border: '1.5px solid #e0dbd5', borderRadius: '20px', fontSize: '12.5px', fontWeight: '600', outline: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
           <option value="all">全イベント</option>
           <option value="match">試合のみ</option>
           <option value="practice">練習のみ</option>
         </select>
-        <button style={{ padding: '6px 12px', background: 'transparent', border: '1.5px solid #ddd', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }}>📥 CSV</button>
       </div>
 
-      {loading ? (
-        <div style={{ color: '#8a7f7a', fontSize: '13px' }}>読み込み中...</div>
-      ) : (
+      {loading ? <div style={{ color: '#8a7f7a', fontSize: '13px' }}>読み込み中...</div> : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '20px' }}>
-            <div style={{ background: 'white', borderRadius: '10px', padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', borderTop: '3px solid #e8c84a' }}>
-              <div style={{ fontSize: '36px', fontFamily: 'serif', lineHeight: 1 }}>{totalEvents}</div>
-              <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>対象イベント数</div>
-            </div>
-            <div style={{ background: 'white', borderRadius: '10px', padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', borderTop: '3px solid #27ae60' }}>
-              <div style={{ fontSize: '36px', fontFamily: 'serif', lineHeight: 1, color: '#27ae60' }}>{membersWithRate.filter(m => m.rate >= 70).length}</div>
-              <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>出席率70%以上</div>
-            </div>
-            <div style={{ background: 'white', borderRadius: '10px', padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', borderTop: '3px solid #e74c3c' }}>
-              <div style={{ fontSize: '36px', fontFamily: 'serif', lineHeight: 1, color: '#e74c3c' }}>{membersWithRate.filter(m => m.rate < 50).length}</div>
-              <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>出席率50%未満</div>
-            </div>
+            {[
+              [totalEvents, '対象イベント数', '#e8c84a'],
+              [membersWithRate.filter(m => m.rate >= 70).length, '出席率70%以上', '#27ae60'],
+              [membersWithRate.filter(m => m.rate < 50).length, '出席率50%未満', '#e74c3c'],
+            ].map(([val, label, color], i) => (
+              <div key={i} style={{ background: 'white', borderRadius: '10px', padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', borderTop: `3px solid ${color}` }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '36px', color, lineHeight: 1 }}>{val}</div>
+                <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>{label}</div>
+              </div>
+            ))}
           </div>
 
           {filter === 'all' ? (
