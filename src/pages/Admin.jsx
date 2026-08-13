@@ -457,28 +457,84 @@ export default function Admin() {
 
       {/* 背番号管理 */}
       {tab === 'jersey' && (
-        <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-              <thead>
-                <tr>{['名前','チーム','Home #','Away #','操作'].map(h => (
-                  <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px' }}>{h}</th>
-                ))}</tr>
-              </thead>
-              <tbody>
-                {members.map(m => (
-                  <tr key={m.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
-                    <td style={{ padding: '9px 12px', fontWeight: '500' }}>{m.name}</td>
-                    <td style={{ padding: '9px 12px' }}>{teamBadge(m.team)}</td>
-                    <td style={{ padding: '9px 12px' }}>{m.jersey_home ? <span style={{ background: '#f0f0f0', color: '#555', fontSize: '12px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px', border: '1px solid #ccc' }}>#{m.jersey_home}</span> : '－'}</td>
-                    <td style={{ padding: '9px 12px' }}>{m.jersey_away ? <span style={{ background: '#d4f4e0', color: '#1a7a40', fontSize: '12px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>#{m.jersey_away}</span> : '－'}</td>
-                    <td style={{ padding: '9px 12px' }}>
-                      <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '4px 9px', fontSize: '11.5px' })} onClick={() => openEditMember(m)}>変更</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div>
+          {/* 凡例 */}
+          <div style={{ display: 'flex', gap: '14px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            {[['#f0f0f0','#555','1px solid #ccc','ホーム（白）使用中'],['#d4f4e0','#1a7a40','none','アウェイ（緑）使用中'],['#faf8f5','#c8bfb8','1px dashed #c0b8b0','空き番号']].map(([bg,color,border,label]) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#8a7f7a' }}>
+                <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: bg, border }} />
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* ホームグリッド */}
+          <div style={{ marginBottom: '28px' }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '2px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ display: 'inline-block', width: '11px', height: '22px', background: '#bbb', border: '1.5px solid #999', borderRadius: '3px' }} />
+              ホームユニフォーム（白）
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: '9px' }}>
+              {Array.from({ length: 99 }, (_, i) => i + 1).map(num => {
+                const owner = members.find(m => m.jersey_home === num)
+                return (
+                  <div key={num}
+                    style={{ background: owner ? '#f0f0f0' : '#faf8f5', borderRadius: '8px', padding: '9px 5px 7px', textAlign: 'center', border: owner ? '2px solid #999' : '2px dashed #c0b8b0', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', transition: 'all .15s' }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', lineHeight: 1, color: owner ? '#555' : '#c8bfb8' }}>{num}</div>
+                    <div style={{ fontSize: '8.5px', color: '#8a7f7a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner ? owner.name : '－'}</div>
+                    <div style={{ fontSize: '7.5px', fontWeight: '700', marginTop: '2px', color: owner ? '#888' : '#c8bfb8' }}>{owner ? '使用中' : 'OPEN'}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* アウェイグリッド */}
+          <div style={{ marginBottom: '28px' }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '2px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ display: 'inline-block', width: '11px', height: '22px', background: '#27ae60', borderRadius: '3px' }} />
+              アウェイユニフォーム（緑）
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: '9px' }}>
+              {Array.from({ length: 99 }, (_, i) => i + 1).map(num => {
+                const owner = members.find(m => m.jersey_away === num)
+                return (
+                  <div key={num}
+                    style={{ background: owner ? '#d4f4e0' : '#faf8f5', borderRadius: '8px', padding: '9px 5px 7px', textAlign: 'center', border: owner ? '2px solid #27ae60' : '2px dashed #c0b8b0', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', transition: 'all .15s' }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', lineHeight: 1, color: owner ? '#1a7a40' : '#c8bfb8' }}>{num}</div>
+                    <div style={{ fontSize: '8.5px', color: '#8a7f7a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner ? owner.name : '－'}</div>
+                    <div style={{ fontSize: '7.5px', fontWeight: '700', marginTop: '2px', color: owner ? '#1a7a40' : '#c8bfb8' }}>{owner ? '使用中' : 'OPEN'}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* 割当一覧テーブル */}
+          <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>📋 割当一覧</div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr>{['名前','チーム','Home #','Away #','操作'].map(h => (
+                    <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '1px' }}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {members.map(m => (
+                    <tr key={m.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
+                      <td style={{ padding: '9px 12px', fontWeight: '500' }}>{m.name}</td>
+                      <td style={{ padding: '9px 12px' }}>{teamBadge(m.team)}</td>
+                      <td style={{ padding: '9px 12px' }}>{m.jersey_home ? <span style={{ background: '#f0f0f0', color: '#555', fontSize: '12px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px', border: '1px solid #ccc' }}>#{m.jersey_home}</span> : '－'}</td>
+                      <td style={{ padding: '9px 12px' }}>{m.jersey_away ? <span style={{ background: '#d4f4e0', color: '#1a7a40', fontSize: '12px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>#{m.jersey_away}</span> : '－'}</td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '4px 9px', fontSize: '11.5px' })} onClick={() => openEditMember(m)}>変更</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
