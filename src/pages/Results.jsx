@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
+const th = { background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px', whiteSpace: 'nowrap', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '1px' }
+
 export default function Results() {
   const [matches, setMatches] = useState([])
   const [goals, setGoals] = useState([])
@@ -8,9 +10,7 @@ export default function Results() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
 
-  useEffect(() => {
-    fetchAll()
-  }, [])
+  useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
     const [{ data: m }, { data: g }, { data: mem }] = await Promise.all([
@@ -27,26 +27,22 @@ export default function Results() {
   const filtered = matches.filter(m => filter === 'all' || m.team === filter)
 
   const stats = (team) => {
-    const teamMatches = matches.filter(m => m.team === team)
+    const tm = matches.filter(m => m.team === team)
     return {
-      w: teamMatches.filter(m => m.score_us > m.score_them).length,
-      d: teamMatches.filter(m => m.score_us === m.score_them).length,
-      l: teamMatches.filter(m => m.score_us < m.score_them).length,
-      gf: teamMatches.reduce((s, m) => s + (m.score_us || 0), 0),
-      ga: teamMatches.reduce((s, m) => s + (m.score_them || 0), 0),
+      w: tm.filter(m => m.score_us > m.score_them).length,
+      d: tm.filter(m => m.score_us === m.score_them).length,
+      l: tm.filter(m => m.score_us < m.score_them).length,
+      gf: tm.reduce((s, m) => s + (m.score_us || 0), 0),
+      ga: tm.reduce((s, m) => s + (m.score_them || 0), 0),
     }
   }
 
   const scorers = (team) => {
-    const teamMembers = members.filter(m => m.team === team)
     const teamMatchIds = matches.filter(m => m.team === team).map(m => m.id)
-    const teamGoals = goals.filter(g => teamMatchIds.includes(g.match_id))
     const map = {}
-    teamGoals.forEach(g => {
-      const member = teamMembers.find(m => m.id === g.member_id)
-      if (member) {
-        map[member.name] = (map[member.name] || 0) + 1
-      }
+    goals.filter(g => teamMatchIds.includes(g.match_id)).forEach(g => {
+      const member = members.find(m => m.id === g.member_id)
+      if (member) map[member.name] = (map[member.name] || 0) + 1
     })
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5)
   }
@@ -70,15 +66,17 @@ export default function Results() {
     color: filter === val ? 'white' : '#8a7f7a',
   })
 
-  const StatBox = ({ team }) => {
+  const StatBoxes = ({ team }) => {
     const s = stats(team)
     const color = team === 'u40' ? '#7b5ea7' : '#2a5fa5'
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '14px' }}>
-        {[['勝利', s.w, '#27ae60'], ['引分', s.d, '#3949ab'], ['敗北', s.l, '#e74c3c'], [`${s.gf} / ${s.ga}`, null, color]].map(([label, val, c], i) => (
+        {[['勝利', s.w, '#27ae60'], ['引分', s.d, '#3949ab'], ['敗北', s.l, '#e74c3c'], [null, null, color]].map(([label, val, c], i) => (
           <div key={i} style={{ background: 'white', borderRadius: '10px', padding: '14px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', borderTop: `3px solid ${c}` }}>
-            <div style={{ fontSize: '30px', fontFamily: 'serif', color: c, lineHeight: 1 }}>{val !== null ? val : label}</div>
-            <div style={{ fontSize: '11px', color: '#8a7f7a', marginTop: '3px' }}>{val !== null ? label : '得点 / 失点'}</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', color: c, lineHeight: 1 }}>
+              {i === 3 ? `${s.gf}/${s.ga}` : val}
+            </div>
+            <div style={{ fontSize: '11px', color: '#8a7f7a', marginTop: '3px' }}>{i === 3 ? '得点/失点' : label}</div>
           </div>
         ))}
       </div>
@@ -94,20 +92,20 @@ export default function Results() {
           const matchGoals = goals.filter(g => g.match_id === m.id)
           const scorerNames = matchGoals.map(g => {
             const member = members.find(mem => mem.id === g.member_id)
-            return member ? `${member.name}${g.minute ? `(${g.minute}')` : ''}` : '不明'
-          })
+            return member ? `${member.name}${g.minute ? `(${g.minute}')` : ''}` : ''
+          }).filter(Boolean)
           return (
             <div key={m.id} style={{ background: 'white', borderRadius: '10px', padding: '16px 20px', marginBottom: '10px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', fontSize: '12px', color: '#8a7f7a' }}>
                 <span>{m.match_date}</span>
                 {m.venue && <span>📍 {m.venue}</span>}
-                <span>{m.home_away === 'home' ? '🏠 ホーム' : m.home_away === 'away' ? '✈️ アウェイ' : '🏟️ 中立'}</span>
+                <span>{m.home_away === 'home' ? '🏠' : m.home_away === 'away' ? '✈️' : '🏟️'}</span>
                 {resultTag(m)}
                 {teamBadge(m.team)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', margin: '10px 0' }}>
                 <div style={{ fontWeight: '700', fontSize: '14px', textAlign: 'center', minWidth: '120px' }}>Saigon Japan FC</div>
-                <div style={{ fontFamily: 'serif', fontSize: '40px', letterSpacing: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '40px', letterSpacing: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ color: m.score_us > m.score_them ? '#27ae60' : m.score_us < m.score_them ? '#e74c3c' : '#2a2220' }}>{m.score_us}</span>
                   <span style={{ color: '#8a7f7a', fontSize: '22px' }}>-</span>
                   <span style={{ color: m.score_them > m.score_us ? '#27ae60' : m.score_them < m.score_us ? '#e74c3c' : '#2a2220' }}>{m.score_them}</span>
@@ -119,7 +117,6 @@ export default function Results() {
                   ⚽ {scorerNames.join('　')}
                 </div>
               )}
-              {m.notes && <div style={{ fontSize: '12px', color: '#8a7f7a', marginTop: '4px' }}>📝 {m.notes}</div>}
             </div>
           )
         })}
@@ -133,26 +130,18 @@ export default function Results() {
     const medals = ['🥇', '🥈', '🥉']
     return (
       <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-        <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#2a2220', marginBottom: '12px' }}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1px', color: '#2a2220', marginBottom: '12px' }}>
           <span style={{ color }}>■</span> {team === 'u40' ? 'U-40' : 'O-40'} 得点ランキング
         </div>
-        {list.length === 0 ? (
-          <div style={{ color: '#8a7f7a', fontSize: '12px' }}>得点記録がありません</div>
-        ) : (
+        {list.length === 0 ? <div style={{ color: '#8a7f7a', fontSize: '12px' }}>得点記録がありません</div> : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr>
-                {['順位', '選手', '得点'].map(h => (
-                  <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '8px 12px', textAlign: 'left', fontSize: '12px' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
+            <thead><tr>{['順位', '選手', '得点'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
             <tbody>
               {list.map(([name, count], i) => (
                 <tr key={name} style={{ borderBottom: '1px solid #f0ebe5' }}>
                   <td style={{ padding: '8px 12px' }}>{medals[i] || `${i + 1}`}</td>
                   <td style={{ padding: '8px 12px', fontWeight: '500' }}>{name}</td>
-                  <td style={{ padding: '8px 12px', fontFamily: 'serif', fontSize: '20px', color: '#2a2220', fontWeight: 'bold' }}>{count}</td>
+                  <td style={{ padding: '8px 12px', fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px' }}>{count}</td>
                 </tr>
               ))}
             </tbody>
@@ -163,40 +152,31 @@ export default function Results() {
   }
 
   return (
-    <div style={{ fontFamily: 'sans-serif' }}>
-      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2a2220', letterSpacing: '2px', marginBottom: '20px' }}>
-        試合結果
-      </div>
+    <div style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '2px', color: '#2a2220', marginBottom: '20px' }}>試合結果</div>
 
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '20px' }}>
         <div style={tabStyle('all')} onClick={() => setFilter('all')}>全体</div>
         <div style={tabStyle('u40')} onClick={() => setFilter('u40')}>U-40</div>
         <div style={tabStyle('o40')} onClick={() => setFilter('o40')}>O-40</div>
       </div>
 
-      {loading ? (
-        <div style={{ color: '#8a7f7a', fontSize: '13px' }}>読み込み中...</div>
-      ) : (
+      {loading ? <div style={{ color: '#8a7f7a', fontSize: '13px' }}>読み込み中...</div> : (
         <>
-          {/* U-40 */}
           {(filter === 'all' || filter === 'u40') && (
             <div style={{ marginBottom: '28px' }}>
-              <div style={{ fontFamily: 'serif', fontSize: '15px', fontWeight: 'bold', color: '#7b5ea7', marginBottom: '12px', letterSpacing: '1px' }}>■ U-40</div>
-              <StatBox team="u40" />
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '1px', color: '#7b5ea7', marginBottom: '12px' }}>■ U-40</div>
+              <StatBoxes team="u40" />
               <MatchList team="u40" />
             </div>
           )}
-
-          {/* O-40 */}
           {(filter === 'all' || filter === 'o40') && (
             <div style={{ marginBottom: '28px' }}>
-              <div style={{ fontFamily: 'serif', fontSize: '15px', fontWeight: 'bold', color: '#2a5fa5', marginBottom: '12px', letterSpacing: '1px' }}>■ O-40</div>
-              <StatBox team="o40" />
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '1px', color: '#2a5fa5', marginBottom: '12px' }}>■ O-40</div>
+              <StatBoxes team="o40" />
               <MatchList team="o40" />
             </div>
           )}
-
-          {/* 得点ランキング */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
             <ScorerRanking team="u40" />
             <ScorerRanking team="o40" />
