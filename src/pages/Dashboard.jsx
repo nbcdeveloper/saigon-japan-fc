@@ -37,7 +37,7 @@ export default function Dashboard() {
   }, [])
 
   const fetchStats = async () => {
-    const { data } = await supabase.from('profiles').select('team, status, birth_year, name').eq('status', 'active')
+    const { data } = await supabase.from('profiles').select('id, name, team, status, birth_month, birth_day').eq('status', 'active')
     if (data) {
       const currentMonth = new Date().getMonth() + 1
       setStats({
@@ -45,9 +45,7 @@ export default function Dashboard() {
         u40: data.filter(m => m.team === 'u40').length,
         o40: data.filter(m => m.team === 'o40').length,
       })
-      // 今月の誕生日メンバー（birth_yearは生まれ年のみなので月情報は別途必要）
-      // joined_atではなく、別途誕生月が必要なため、ここでは仮で空にする
-      setBirthdayMembers([])
+      setBirthdayMembers(data.filter(m => m.birth_month === currentMonth).sort((a, b) => (a.birth_day || 0) - (b.birth_day || 0)))
     }
   }
 
@@ -225,13 +223,13 @@ export default function Dashboard() {
             🎂 {currentMonth}月の誕生日
           </div>
           {birthdayMembers.length === 0 ? (
-            <div style={{ fontSize: '12px', color: '#8a7f7a' }}>
-              誕生月情報を登録すると<br />ここに表示されます
-            </div>
+            <div style={{ fontSize: '12px', color: '#8a7f7a' }}>今月の誕生日はいません</div>
           ) : (
             birthdayMembers.map(m => (
-              <div key={m.id} style={{ fontSize: '13px', fontWeight: '500', padding: '3px 0', borderBottom: '1px solid #f0ebe5' }}>
-                🎉 {m.name}
+              <div key={m.id} style={{ fontSize: '13px', fontWeight: '500', padding: '4px 0', borderBottom: '1px solid #f0ebe5', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🎉</span>
+                <span>{m.name}</span>
+                {m.birth_day && <span style={{ fontSize: '11px', color: '#8a7f7a' }}>（{m.birth_month}/{m.birth_day}）</span>}
               </div>
             ))
           )}

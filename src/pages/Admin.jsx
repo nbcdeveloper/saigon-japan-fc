@@ -47,7 +47,7 @@ export default function Admin() {
   const [editMember, setEditMember] = useState(null)
   const [memberForm, setMemberForm] = useState({
     name: '', team: 'u40', position1: 'MF', position2: '',
-    birth_year: '', joined_at: '', status: 'active', dues_type: 'monthly',
+    birth_year: '', birth_month: '', birth_day: '', joined_at: '', status: 'active', dues_type: 'monthly',
     jersey_home: '', jersey_away: '', email: '', password: ''
   })
 
@@ -175,13 +175,13 @@ export default function Admin() {
   // Member CRUD
   const openAddMember = () => {
     setEditMember(null)
-    setMemberForm({ name: '', team: 'u40', position1: 'MF', position2: '', birth_year: '', joined_at: '', status: 'active', dues_type: 'monthly', jersey_home: '', jersey_away: '', email: '', password: '' })
+    setMemberForm({ name: '', team: 'u40', position1: 'MF', position2: '', birth_year: '', birth_month: '', birth_day: '', joined_at: '', status: 'active', dues_type: 'monthly', jersey_home: '', jersey_away: '', email: '', password: '' })
     setMemberModal(true)
   }
 
   const openEditMember = (m) => {
     setEditMember(m)
-    setMemberForm({ name: m.name || '', team: m.team || 'u40', position1: m.position1 || 'MF', position2: m.position2 || '', birth_year: m.birth_year || '', joined_at: m.joined_at || '', status: m.status || 'active', dues_type: m.dues_type || 'monthly', jersey_home: m.jersey_home || '', jersey_away: m.jersey_away || '', email: '', password: '' })
+    setMemberForm({ name: m.name || '', team: m.team || 'u40', position1: m.position1 || 'MF', position2: m.position2 || '', birth_year: m.birth_year || '', birth_month: m.birth_month || '', birth_day: m.birth_day || '', joined_at: m.joined_at || '', status: m.status || 'active', dues_type: m.dues_type || 'monthly', jersey_home: m.jersey_home || '', jersey_away: m.jersey_away || '', email: '', password: '' })
     setMemberModal(true)
   }
 
@@ -191,6 +191,8 @@ export default function Admin() {
       name: memberForm.name, team: memberForm.team, position1: memberForm.position1,
       position2: memberForm.position2 || null,
       birth_year: memberForm.birth_year ? parseInt(memberForm.birth_year) : null,
+      birth_month: memberForm.birth_month ? parseInt(memberForm.birth_month) : null,
+      birth_day: memberForm.birth_day ? parseInt(memberForm.birth_day) : null,
       joined_at: memberForm.joined_at || null, status: memberForm.status, dues_type: memberForm.dues_type,
       jersey_home: memberForm.jersey_home ? parseInt(memberForm.jersey_home) : null,
       jersey_away: memberForm.jersey_away ? parseInt(memberForm.jersey_away) : null,
@@ -390,7 +392,7 @@ export default function Admin() {
                         <span style={{ background: '#e8e0d8', color: '#2a2220', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px', marginRight: '3px' }}>{m.position1}</span>
                         {m.position2 && <span style={{ background: '#e8e0d8', color: '#2a2220', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>{m.position2}</span>}
                       </td>
-                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.birth_year || '－'}</td>
+                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.birth_year ? `${m.birth_year}年${m.birth_month ? m.birth_month + '月' : ''}${m.birth_day ? m.birth_day + '日' : ''}` : '－'}</td>
                       <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.joined_at ? m.joined_at.slice(0,7).replace('-','/') : '－'}</td>
                       <td style={{ padding: '9px 12px' }}>
                         <span style={{ background: m.dues_type === 'spot' ? '#fff3cd' : '#e8e0d8', color: m.dues_type === 'spot' ? '#856404' : '#8a7f7a', fontSize: '10.5px', fontWeight: '600', padding: '2px 6px', borderRadius: '4px' }}>
@@ -697,6 +699,20 @@ export default function Admin() {
               <div><label style={labelStyle}>ポジション１</label><select style={inputStyle} value={memberForm.position1} onChange={e => setMemberForm({ ...memberForm, position1: e.target.value })}>{['GK','DF','MF','FW'].map(p => <option key={p}>{p}</option>)}</select></div>
               <div><label style={labelStyle}>ポジション２（任意）</label><select style={inputStyle} value={memberForm.position2} onChange={e => setMemberForm({ ...memberForm, position2: e.target.value })}><option value="">－</option>{['GK','DF','MF','FW'].map(p => <option key={p}>{p}</option>)}</select></div>
               <div><label style={labelStyle}>生年</label><input style={inputStyle} type="number" value={memberForm.birth_year} onChange={e => setMemberForm({ ...memberForm, birth_year: e.target.value })} placeholder="例：1990" /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                <div><label style={labelStyle}>誕生月</label>
+                  <select style={inputStyle} value={memberForm.birth_month} onChange={e => setMemberForm({ ...memberForm, birth_month: e.target.value })}>
+                    <option value="">－</option>
+                    {Array.from({length:12},(_,i)=><option key={i+1} value={i+1}>{i+1}月</option>)}
+                  </select>
+                </div>
+                <div><label style={labelStyle}>誕生日</label>
+                  <select style={inputStyle} value={memberForm.birth_day} onChange={e => setMemberForm({ ...memberForm, birth_day: e.target.value })}>
+                    <option value="">－</option>
+                    {Array.from({length:31},(_,i)=><option key={i+1} value={i+1}>{i+1}日</option>)}
+                  </select>
+                </div>
+              </div>
               <div><label style={labelStyle}>入部年月</label><input style={inputStyle} type="month" value={memberForm.joined_at?.slice(0,7) || ''} onChange={e => setMemberForm({ ...memberForm, joined_at: e.target.value + '-01' })} /></div>
               <div><label style={labelStyle}>Home 背番号</label><input style={inputStyle} type="number" value={memberForm.jersey_home} onChange={e => setMemberForm({ ...memberForm, jersey_home: e.target.value })} /></div>
               <div><label style={labelStyle}>Away 背番号</label><input style={inputStyle} type="number" value={memberForm.jersey_away} onChange={e => setMemberForm({ ...memberForm, jersey_away: e.target.value })} /></div>

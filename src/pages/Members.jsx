@@ -90,7 +90,7 @@ export default function Members() {
                       <td style={{ padding: '9px 12px' }}>
                         {m.jersey_away ? <span style={{ background: '#d4f4e0', color: '#1a7a40', fontSize: '11px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px' }}>#{m.jersey_away}</span> : '－'}
                       </td>
-                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.birth_year ? m.birth_year + '年' : '－'}</td>
+                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.birth_year ? `${m.birth_year}年${m.birth_month ? m.birth_month + '月' : ''}${m.birth_day ? m.birth_day + '日' : ''}` : '－'}</td>
                       <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.joined_at ? m.joined_at.slice(0, 7).replace('-', '/') : '－'}</td>
                       <td style={{ padding: '9px 12px' }}>
                         <span style={{ background: m.status === 'active' ? '#d4f4e0' : '#fff3cd', color: m.status === 'active' ? '#1a7a40' : '#856404', fontSize: '11px', fontWeight: '600', padding: '2px 7px', borderRadius: '4px' }}>
