@@ -91,7 +91,7 @@ export default function Dashboard() {
       </div>
 
       {/* 上段：スケジュール＋お知らせ */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '0' }}>
+      <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '0' }}>
         {/* スケジュール */}
         <div style={card}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
@@ -182,7 +182,7 @@ export default function Dashboard() {
       </div>
 
       {/* 中段：出席率 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+      <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
         <div style={card}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1px', color: '#2a2220', marginBottom: '12px' }}>
             <span style={{ color: '#7b5ea7' }}>■</span> U-40 出席率 トップ5
@@ -216,7 +216,7 @@ export default function Dashboard() {
       </div>
 
       {/* 下段：統計 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
+      <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
         {/* 今月の誕生日 */}
         <div style={statBox('#e74c3c')}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '1px', color: '#e74c3c', marginBottom: '8px' }}>
