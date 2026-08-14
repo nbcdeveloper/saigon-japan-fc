@@ -70,7 +70,7 @@ export default function Results() {
     const s = stats(team)
     const color = team === 'u40' ? '#7b5ea7' : '#2a5fa5'
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '14px' }}>
+      <div className="grid-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '14px' }}>
         {[['勝利', s.w, '#27ae60'], ['引分', s.d, '#3949ab'], ['敗北', s.l, '#e74c3c'], [null, null, color]].map(([label, val, c], i) => (
           <div key={i} style={{ background: 'white', borderRadius: '10px', padding: '14px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', borderTop: `3px solid ${c}` }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', color: c, lineHeight: 1 }}>
@@ -177,7 +177,7 @@ export default function Results() {
               <MatchList team="o40" />
             </div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+          <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
             <ScorerRanking team="u40" />
             <ScorerRanking team="o40" />
           </div>

@@ -98,7 +98,7 @@ export default function Attendance() {
 
       {loading ? <div style={{ color: '#8a7f7a', fontSize: '13px' }}>読み込み中...</div> : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '20px' }}>
+          <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '20px' }}>
             {[
               [totalEvents, '対象イベント数', '#e8c84a'],
               [membersWithRate.filter(m => m.rate >= 70).length, '出席率70%以上', '#27ae60'],
@@ -112,7 +112,7 @@ export default function Attendance() {
           </div>
 
           {filter === 'all' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+            <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
               <AttendList list={u40Members} color="#7b5ea7" title="U-40" />
               <AttendList list={o40Members} color="#2a5fa5" title="O-40" />
             </div>

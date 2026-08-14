@@ -140,8 +140,8 @@ export default function Members() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
-                      {m.jersey_home && <span style={{ background: '#f0f0f0', color: '#555', fontSize: '11px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', border: '1px solid #ccc' }}>🏠#{m.jersey_home}</span>}
-                      {m.jersey_away && <span style={{ background: '#d4f4e0', color: '#1a7a40', fontSize: '11px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px' }}>✈️#{m.jersey_away}</span>}
+                      {m.jersey_home && <span style={{ background: '#f0f0f0', color: '#555', fontSize: '11px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', border: '1px solid #ccc' }}>👕#{m.jersey_home}</span>}
+                      {m.jersey_away && <span style={{ background: '#d4f4e0', color: '#1a7a40', fontSize: '11px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px' }}>👕#{m.jersey_away}</span>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#8a7f7a', borderTop: '1px solid #f0ebe5', paddingTop: '8px' }}>

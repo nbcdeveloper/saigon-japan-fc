@@ -511,7 +511,7 @@ export default function Admin() {
                         <span style={{ marginLeft: '8px' }}>{resultTag(m)}</span>
                       </td>
                       <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.match_type}</td>
-                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.home_away === 'home' ? '🏠' : m.home_away === 'away' ? '✈️' : '🏟️'}</td>
+                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.home_away === 'home' ? '👕' : m.home_away === 'away' ? '👕' : '🏟️'}</td>
                       <td style={{ padding: '9px 12px' }}>
                         <div style={{ display: 'flex', gap: '4px' }}>
                           <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '4px 9px', fontSize: '11.5px' })} onClick={() => openEditMatch(m)}>編集</button>
@@ -819,7 +819,7 @@ export default function Admin() {
               <div><label style={labelStyle}>日付 *</label><input style={inputStyle} type="date" value={matchForm.match_date} onChange={e => setMatchForm({ ...matchForm, match_date: e.target.value })} /></div>
               <div><label style={labelStyle}>相手チーム *</label><input style={inputStyle} value={matchForm.opponent} onChange={e => setMatchForm({ ...matchForm, opponent: e.target.value })} placeholder="例：ハノイ日本人FC" /></div>
               <div><label style={labelStyle}>種別</label><select style={inputStyle} value={matchForm.match_type} onChange={e => setMatchForm({ ...matchForm, match_type: e.target.value })}>{['公式戦','フレンドリー','カップ戦','遠征'].map(t => <option key={t}>{t}</option>)}</select></div>
-              <div><label style={labelStyle}>H / A</label><select style={inputStyle} value={matchForm.home_away} onChange={e => setMatchForm({ ...matchForm, home_away: e.target.value })}><option value="home">🏠 ホーム</option><option value="away">✈️ アウェイ</option><option value="neutral">🏟️ 中立地</option></select></div>
+              <div><label style={labelStyle}>H / A</label><select style={inputStyle} value={matchForm.home_away} onChange={e => setMatchForm({ ...matchForm, home_away: e.target.value })}><option value="home">👕 ホーム</option><option value="away">👕 アウェイ</option><option value="neutral">🏟️ 中立地</option></select></div>
               <div><label style={labelStyle}>会場</label><input style={inputStyle} value={matchForm.venue} onChange={e => setMatchForm({ ...matchForm, venue: e.target.value })} placeholder="例：Thong Nhat Stadium" /></div>
             </div>
 
