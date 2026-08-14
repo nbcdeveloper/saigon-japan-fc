@@ -68,6 +68,15 @@ export default function Admin() {
   })
   const [scorerInputs, setScorerInputs] = useState([{ member_id: '', minute: '' }])
 
+  // Sponsors
+  const [sponsors, setSponsors] = useState([])
+  const [sponsorModal, setSponsorModal] = useState(false)
+  const [editSponsor, setEditSponsor] = useState(null)
+  const [sponsorForm, setSponsorForm] = useState({
+    name: '', category: 'general', description: '', benefits: '',
+    website_url: '', address: '', phone: '', logo_url: '', sort_order: 0, is_active: true
+  })
+
   // Master
   const [newMasterValue, setNewMasterValue] = useState({ event_type: '', venue: '', meetup_place: '' })
 
@@ -82,6 +91,7 @@ export default function Admin() {
       fetchMembers()
       fetchEvents()
       fetchMatches()
+      fetchSponsors()
       fetchMasters()
     }
     setLoading(false)
@@ -100,6 +110,40 @@ export default function Admin() {
   const fetchMatches = async () => {
     const { data } = await supabase.from('matches').select('*').order('match_date', { ascending: false })
     if (data) setMatches(data)
+  }
+
+  const fetchSponsors = async () => {
+    const { data } = await supabase.from('sponsors').select('*').order('sort_order')
+    if (data) setSponsors(data)
+  }
+
+  const openAddSponsor = () => {
+    setEditSponsor(null)
+    setSponsorForm({ name: '', category: 'general', description: '', benefits: '', website_url: '', address: '', phone: '', logo_url: '', sort_order: 0, is_active: true })
+    setSponsorModal(true)
+  }
+
+  const openEditSponsor = (sp) => {
+    setEditSponsor(sp)
+    setSponsorForm({ name: sp.name, category: sp.category, description: sp.description || '', benefits: sp.benefits || '', website_url: sp.website_url || '', address: sp.address || '', phone: sp.phone || '', logo_url: sp.logo_url || '', sort_order: sp.sort_order || 0, is_active: sp.is_active })
+    setSponsorModal(true)
+  }
+
+  const saveSponsor = async () => {
+    if (!sponsorForm.name) return alert('企業名は必須です')
+    if (editSponsor) {
+      await supabase.from('sponsors').update(sponsorForm).eq('id', editSponsor.id)
+    } else {
+      await supabase.from('sponsors').insert(sponsorForm)
+    }
+    setSponsorModal(false)
+    fetchSponsors()
+  }
+
+  const deleteSponsor = async (id) => {
+    if (!window.confirm('削除しますか？')) return
+    await supabase.from('sponsors').delete().eq('id', id)
+    fetchSponsors()
   }
 
   const fetchMasters = async () => {
@@ -266,6 +310,7 @@ export default function Admin() {
     ['matches', '🏆 試合結果'],
     ['payments', '💴 部費'],
     ['jersey', '👕 背番号'],
+    ['sponsors', '🤝 協賛'],
     ['master', '⚙️ マスタ'],
   ]
 
@@ -536,6 +581,99 @@ export default function Admin() {
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 協賛管理 */}
+      {tab === 'sponsors' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
+            <button style={btn('#2a2220', '#e8c84a')} onClick={openAddSponsor}>＋ スポンサー追加</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '14px' }}>
+            {sponsors.length === 0 && <div style={{ color: '#8a7f7a', fontSize: '13px' }}>スポンサーはありません</div>}
+            {sponsors.map(sp => (
+              <div key={sp.id} style={{ background: 'white', borderRadius: '10px', padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', borderLeft: `4px solid ${sp.category === 'gold' ? '#e8c84a' : sp.category === 'silver' ? '#888' : '#2a5fa5'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '14px' }}>{sp.name}</div>
+                    <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: sp.category === 'gold' ? '#fef9e7' : sp.category === 'silver' ? '#f5f5f5' : '#dceeff', color: sp.category === 'gold' ? '#e8c84a' : sp.category === 'silver' ? '#888' : '#2a5fa5' }}>
+                      {sp.category === 'gold' ? 'GOLD' : sp.category === 'silver' ? 'SILVER' : 'サポーター'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 7px', borderRadius: '4px', background: sp.is_active ? '#d4f4e0' : '#fff3cd', color: sp.is_active ? '#1a7a40' : '#856404' }}>
+                    {sp.is_active ? '公開中' : '非公開'}
+                  </span>
+                </div>
+                {sp.description && <div style={{ fontSize: '12px', color: '#8a7f7a', marginBottom: '8px' }}>{sp.description.slice(0, 50)}{sp.description.length > 50 ? '...' : ''}</div>}
+                <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+                  <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '4px 9px', fontSize: '11.5px' })} onClick={() => openEditSponsor(sp)}>編集</button>
+                  <button style={btn('#e74c3c', 'white', { padding: '4px 9px', fontSize: '11.5px' })} onClick={() => deleteSponsor(sp.id)}>削除</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* スポンサーモーダル */}
+          {sponsorModal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }} onClick={() => setSponsorModal(false)}>
+              <div style={{ background: 'white', borderRadius: '12px', padding: '26px', width: '520px', maxWidth: '92vw', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '19px', letterSpacing: '1px', marginBottom: '16px' }}>
+                  {editSponsor ? '✏️ スポンサー編集' : '🤝 スポンサー追加'}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={labelStyle}>企業名・店名 *</label>
+                    <input style={inputStyle} value={sponsorForm.name} onChange={e => setSponsorForm({ ...sponsorForm, name: e.target.value })} placeholder="例：田中商事" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>カテゴリー</label>
+                    <select style={inputStyle} value={sponsorForm.category} onChange={e => setSponsorForm({ ...sponsorForm, category: e.target.value })}>
+                      <option value="gold">GOLD</option>
+                      <option value="silver">SILVER</option>
+                      <option value="general">サポーター</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>表示順</label>
+                    <input style={inputStyle} type="number" value={sponsorForm.sort_order} onChange={e => setSponsorForm({ ...sponsorForm, sort_order: parseInt(e.target.value) })} />
+                  </div>
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={labelStyle}>説明</label>
+                    <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={sponsorForm.description} onChange={e => setSponsorForm({ ...sponsorForm, description: e.target.value })} placeholder="企業・お店の紹介文" />
+                  </div>
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={labelStyle}>🎁 SJFC会員特典</label>
+                    <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={sponsorForm.benefits} onChange={e => setSponsorForm({ ...sponsorForm, benefits: e.target.value })} placeholder="例：ランチ10%割引、ドリンク1杯無料" />
+                  </div>
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={labelStyle}>住所</label>
+                    <input style={inputStyle} value={sponsorForm.address} onChange={e => setSponsorForm({ ...sponsorForm, address: e.target.value })} placeholder="例：District 1, Ho Chi Minh City" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>電話番号</label>
+                    <input style={inputStyle} value={sponsorForm.phone} onChange={e => setSponsorForm({ ...sponsorForm, phone: e.target.value })} placeholder="例：028-xxxx-xxxx" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>ウェブサイト</label>
+                    <input style={inputStyle} value={sponsorForm.website_url} onChange={e => setSponsorForm({ ...sponsorForm, website_url: e.target.value })} placeholder="https://..." />
+                  </div>
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={labelStyle}>ロゴ URL（任意）</label>
+                    <input style={inputStyle} value={sponsorForm.logo_url} onChange={e => setSponsorForm({ ...sponsorForm, logo_url: e.target.value })} placeholder="https://...（画像のURL）" />
+                  </div>
+                  <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input type="checkbox" id="is_active" checked={sponsorForm.is_active} onChange={e => setSponsorForm({ ...sponsorForm, is_active: e.target.checked })} />
+                    <label htmlFor="is_active" style={{ fontSize: '13px', cursor: 'pointer' }}>公開する</label>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '9px', justifyContent: 'flex-end' }}>
+                  <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd' })} onClick={() => setSponsorModal(false)}>キャンセル</button>
+                  <button style={btn('#e8c84a', '#2a2220')} onClick={saveSponsor}>{editSponsor ? '保存する' : '追加する'}</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
