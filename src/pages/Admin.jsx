@@ -56,7 +56,7 @@ export default function Admin() {
   const [editEvent, setEditEvent] = useState(null)
   const [eventForm, setEventForm] = useState({
     title: '', category: 'u40', event_type: '', event_date: '',
-    venue: '', kickoff_time: '', meetup_time: '', meetup_place: '', deadline: '', notes: ''
+    venue: '', kickoff_time: '', end_time: '', meetup_time: '', meetup_place: '', deadline: '', notes: ''
   })
 
   // Match modal
@@ -210,20 +210,20 @@ export default function Admin() {
   // Event CRUD
   const openAddEvent = () => {
     setEditEvent(null)
-    setEventForm({ title: '', category: 'u40', event_type: '', event_date: '', venue: '', kickoff_time: '', meetup_time: '', meetup_place: '', deadline: '', notes: '' })
+    setEventForm({ title: '', category: 'u40', event_type: '', event_date: '', venue: '', kickoff_time: '', end_time: '', meetup_time: '', meetup_place: '', deadline: '', notes: '' })
     setEventModal(true)
   }
 
   const openEditEvent = (ev) => {
     setEditEvent(ev)
-    setEventForm({ title: ev.title || '', category: ev.category || 'u40', event_type: ev.event_type || '', event_date: ev.event_date || '', venue: ev.venue || '', kickoff_time: ev.kickoff_time ? ev.kickoff_time.slice(0,5) : '', meetup_time: ev.meetup_time ? ev.meetup_time.slice(0,5) : '', meetup_place: ev.meetup_place || '', deadline: ev.deadline || '', notes: ev.notes || '' })
+    setEventForm({ title: ev.title || '', category: ev.category || 'u40', event_type: ev.event_type || '', event_date: ev.event_date || '', venue: ev.venue || '', kickoff_time: ev.kickoff_time ? ev.kickoff_time.slice(0,5) : '', end_time: ev.end_time ? ev.end_time.slice(0,5) : '', meetup_time: ev.meetup_time ? ev.meetup_time.slice(0,5) : '', meetup_place: ev.meetup_place || '', deadline: ev.deadline || '', notes: ev.notes || '' })
     setEventModal(true)
   }
 
   const saveEvent = async () => {
     if (!eventForm.title || !eventForm.event_date) return alert('タイトルと日付は必須です')
     const { data: { user } } = await supabase.auth.getUser()
-    const payload = { ...eventForm, kickoff_time: eventForm.kickoff_time || null, meetup_time: eventForm.meetup_time || null, deadline: eventForm.deadline || null }
+    const payload = { ...eventForm, kickoff_time: eventForm.kickoff_time || null, end_time: eventForm.end_time || null, meetup_time: eventForm.meetup_time || null, deadline: eventForm.deadline || null }
     if (editEvent) {
       await supabase.from('events').update(payload).eq('id', editEvent.id)
     } else {
@@ -727,12 +727,19 @@ export default function Admin() {
               <div style={{ gridColumn: '1/-1' }}><label style={labelStyle}>タイトル *</label><input style={inputStyle} value={eventForm.title} onChange={e => setEventForm({ ...eventForm, title: e.target.value })} placeholder="例：通常練習" /></div>
               <div><label style={labelStyle}>カテゴリー</label><select style={inputStyle} value={eventForm.category} onChange={e => setEventForm({ ...eventForm, category: e.target.value })}><option value="u40">U-40</option><option value="o40">O-40</option><option value="joint">合同</option></select></div>
               <div><label style={labelStyle}>種別</label><select style={inputStyle} value={eventForm.event_type} onChange={e => setEventForm({ ...eventForm, event_type: e.target.value })}><option value="">選択</option>{masters.event_type.map(m => <option key={m.id} value={m.value}>{m.value}</option>)}</select></div>
-              <div><label style={labelStyle}>日付 *</label><input style={inputStyle} type="date" value={eventForm.event_date} onChange={e => setEventForm({ ...eventForm, event_date: e.target.value })} /></div>
-              <div><label style={labelStyle}>場所</label><select style={inputStyle} value={eventForm.venue} onChange={e => setEventForm({ ...eventForm, venue: e.target.value })}><option value="">選択</option>{masters.venue.map(m => <option key={m.id} value={m.value}>{m.value}</option>)}</select></div>
-              <div><label style={labelStyle}>キックオフ</label><TimeInput value={eventForm.kickoff_time} onChange={v => setEventForm({ ...eventForm, kickoff_time: v })} /></div>
-              <div><label style={labelStyle}>集合時間</label><TimeInput value={eventForm.meetup_time} onChange={v => setEventForm({ ...eventForm, meetup_time: v })} /></div>
+              <div><label style={labelStyle}>日付 *</label><input style={inputStyle} type="date" min={new Date().toISOString().split('T')[0]} value={eventForm.event_date} onChange={e => setEventForm({ ...eventForm, event_date: e.target.value, deadline: '' })} /></div>
+              <div><label style={labelStyle}>場所（会場）</label><select style={inputStyle} value={eventForm.venue} onChange={e => setEventForm({ ...eventForm, venue: e.target.value })}><option value="">選択</option>{masters.venue.map(m => <option key={m.id} value={m.value}>{m.value}</option>)}</select></div>
+              <div><label style={labelStyle}>開始時間／キックオフ</label><TimeInput value={eventForm.kickoff_time} onChange={v => setEventForm({ ...eventForm, kickoff_time: v })} /></div>
+              <div><label style={labelStyle}>終了時間</label><TimeInput value={eventForm.end_time || ''} onChange={v => setEventForm({ ...eventForm, end_time: v })} /></div>
               <div><label style={labelStyle}>集合場所</label><select style={inputStyle} value={eventForm.meetup_place} onChange={e => setEventForm({ ...eventForm, meetup_place: e.target.value })}><option value="">選択</option>{masters.meetup_place.map(m => <option key={m.id} value={m.value}>{m.value}</option>)}</select></div>
-              <div><label style={labelStyle}>出欠締め切り</label><input style={inputStyle} type="date" value={eventForm.deadline} onChange={e => setEventForm({ ...eventForm, deadline: e.target.value })} /></div>
+              <div><label style={labelStyle}>集合時間</label><TimeInput value={eventForm.meetup_time} onChange={v => setEventForm({ ...eventForm, meetup_time: v })} /></div>
+              <div><label style={labelStyle}>出欠締め切り</label><input style={inputStyle} type="date"
+                min={new Date().toISOString().split('T')[0]}
+                max={eventForm.event_date || ''}
+                value={eventForm.deadline}
+                onChange={e => setEventForm({ ...eventForm, deadline: e.target.value })}
+                disabled={!eventForm.event_date}
+              /></div>
               <div style={{ gridColumn: '1/-1' }}><label style={labelStyle}>備考</label><input style={inputStyle} value={eventForm.notes} onChange={e => setEventForm({ ...eventForm, notes: e.target.value })} placeholder="例：雨天中止あり" /></div>
             </div>
             <div style={{ display: 'flex', gap: '9px', justifyContent: 'flex-end' }}>
