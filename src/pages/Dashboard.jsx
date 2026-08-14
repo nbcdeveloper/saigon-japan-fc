@@ -19,12 +19,15 @@ const ProgressBar = ({ pct, color }) => (
   </div>
 )
 
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+
 export default function Dashboard() {
   const [stats, setStats] = useState({ total: 0, u40: 0, o40: 0 })
   const [events, setEvents] = useState([])
   const [announcements, setAnnouncements] = useState([])
   const [topU40, setTopU40] = useState([])
   const [topO40, setTopO40] = useState([])
+  const [birthdayMembers, setBirthdayMembers] = useState([])
 
   useEffect(() => {
     fetchStats()
@@ -34,8 +37,18 @@ export default function Dashboard() {
   }, [])
 
   const fetchStats = async () => {
-    const { data } = await supabase.from('profiles').select('team, status').eq('status', 'active')
-    if (data) setStats({ total: data.length, u40: data.filter(m => m.team === 'u40').length, o40: data.filter(m => m.team === 'o40').length })
+    const { data } = await supabase.from('profiles').select('team, status, birth_year, name').eq('status', 'active')
+    if (data) {
+      const currentMonth = new Date().getMonth() + 1
+      setStats({
+        total: data.length,
+        u40: data.filter(m => m.team === 'u40').length,
+        o40: data.filter(m => m.team === 'o40').length,
+      })
+      // 今月の誕生日メンバー（birth_yearは生まれ年のみなので月情報は別途必要）
+      // joined_atではなく、別途誕生月が必要なため、ここでは仮で空にする
+      setBirthdayMembers([])
+    }
   }
 
   const fetchEvents = async () => {
@@ -71,6 +84,7 @@ export default function Dashboard() {
   }
 
   const medals = ['🥇', '🥈', '🥉', '4.', '5.']
+  const currentMonth = new Date().getMonth() + 1
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
@@ -80,7 +94,6 @@ export default function Dashboard() {
 
       {/* 上段：スケジュール＋お知らせ */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '0' }}>
-
         {/* スケジュール */}
         <div style={card}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
@@ -90,28 +103,55 @@ export default function Dashboard() {
           {events.map(ev => {
             const cat = catInfo(ev.category)
             const d = new Date(ev.event_date)
+            const weekday = WEEKDAYS[d.getDay()]
+            const isWeekend = d.getDay() === 0 || d.getDay() === 6
             return (
               <div key={ev.id} style={{
-                display: 'flex', alignItems: 'center', gap: '12px',
-                borderRadius: '8px', padding: '11px 13px', marginBottom: '8px',
+                borderRadius: '8px', padding: '13px 15px', marginBottom: '10px',
                 borderLeft: '4px solid #e8c84a', background: '#fafafa',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.07)'
               }}>
-                <div style={{ textAlign: 'center', minWidth: '34px' }}>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', lineHeight: 1 }}>{d.getDate()}</div>
-                  <div style={{ fontSize: '9px', color: '#8a7f7a', textTransform: 'uppercase' }}>
-                    {d.toLocaleString('en', { month: 'short' })}
+                {/* 日付・曜日・カテゴリー */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', lineHeight: 1, color: '#2a2220' }}>{d.getDate()}</span>
+                    <span style={{ fontSize: '12px', color: '#8a7f7a' }}>{d.toLocaleString('en', { month: 'short' }).toUpperCase()}</span>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: isWeekend ? (d.getDay() === 0 ? '#e74c3c' : '#2a5fa5') : '#2a2220' }}>
+                      （{weekday}）
+                    </span>
                   </div>
+                  <span style={{ background: cat.bg, color: cat.color, fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>
+                    {cat.label}
+                  </span>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', fontSize: '13px' }}>{ev.title}</div>
-                  <div style={{ fontSize: '11px', color: '#8a7f7a', marginTop: '2px' }}>
-                    📍 {ev.venue || '未定'}　⏰ {ev.kickoff_time ? ev.kickoff_time.slice(0,5) : '未定'}
-                  </div>
+
+                {/* タイトル */}
+                <div style={{ fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>{ev.title}</div>
+
+                {/* 詳細情報 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {(ev.kickoff_time || ev.end_time) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#555' }}>
+                      <span style={{ fontSize: '14px' }}>⏰</span>
+                      <span style={{ fontWeight: '600' }}>
+                        {ev.kickoff_time ? ev.kickoff_time.slice(0,5) : ''}
+                        {ev.end_time ? ` 〜 ${ev.end_time.slice(0,5)}` : ''}
+                      </span>
+                    </div>
+                  )}
+                  {ev.venue && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#555' }}>
+                      <span style={{ fontSize: '14px' }}>📍</span>
+                      <span>{ev.venue}</span>
+                    </div>
+                  )}
+                  {ev.meetup_place && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#8a7f7a' }}>
+                      <span style={{ fontSize: '13px' }}>🚩</span>
+                      <span>集合: {ev.meetup_place}{ev.meetup_time ? ` ${ev.meetup_time.slice(0,5)}` : ''}</span>
+                    </div>
+                  )}
                 </div>
-                <span style={{ background: cat.bg, color: cat.color, fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', flexShrink: 0 }}>
-                  {cat.label}
-                </span>
               </div>
             )
           })}
@@ -145,9 +185,8 @@ export default function Dashboard() {
 
       {/* 中段：出席率 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
-        {/* U-40 出席率 */}
         <div style={card}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1px', color: '#2a2220', marginBottom: '12px' }}>
             <span style={{ color: '#7b5ea7' }}>■</span> U-40 出席率 トップ5
           </div>
           {topU40.length === 0 ? <div style={{ color: '#8a7f7a', fontSize: '12px' }}>データがありません</div> :
@@ -161,10 +200,8 @@ export default function Dashboard() {
             ))
           }
         </div>
-
-        {/* O-40 出席率 */}
         <div style={card}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1px', color: '#2a2220', marginBottom: '12px' }}>
             <span style={{ color: '#2a5fa5' }}>■</span> O-40 出席率 トップ5
           </div>
           {topO40.length === 0 ? <div style={{ color: '#8a7f7a', fontSize: '12px' }}>データがありません</div> :
@@ -182,17 +219,35 @@ export default function Dashboard() {
 
       {/* 下段：統計 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
-        <div style={statBox('#e8c84a')}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '38px', lineHeight: 1 }}>{stats.total}</div>
-          <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>登録メンバー</div>
-        </div>
-        <div style={statBox('#7b5ea7')}>
-          <div style={{ fontSize: '18px', lineHeight: 1.5 }}>
-            <span style={{ color: '#7b5ea7', fontWeight: '700' }}>U-40</span> {stats.u40}名<br />
-            <span style={{ color: '#2a5fa5', fontWeight: '700' }}>O-40</span> {stats.o40}名
+        {/* 今月の誕生日 */}
+        <div style={statBox('#e74c3c')}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '1px', color: '#e74c3c', marginBottom: '8px' }}>
+            🎂 {currentMonth}月の誕生日
           </div>
-          <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>チーム内訳</div>
+          {birthdayMembers.length === 0 ? (
+            <div style={{ fontSize: '12px', color: '#8a7f7a' }}>
+              誕生月情報を登録すると<br />ここに表示されます
+            </div>
+          ) : (
+            birthdayMembers.map(m => (
+              <div key={m.id} style={{ fontSize: '13px', fontWeight: '500', padding: '3px 0', borderBottom: '1px solid #f0ebe5' }}>
+                🎉 {m.name}
+              </div>
+            ))
+          )}
         </div>
+
+        {/* チーム内訳＋登録メンバー */}
+        <div style={statBox('#7b5ea7')}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '38px', lineHeight: 1, color: '#2a2220' }}>{stats.total}</div>
+          <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '2px', marginBottom: '8px' }}>登録メンバー</div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ background: '#ede8f7', color: '#7b5ea7', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>U-40: {stats.u40}名</span>
+            <span style={{ background: '#dceeff', color: '#2a5fa5', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>O-40: {stats.o40}名</span>
+          </div>
+        </div>
+
+        {/* 今期成績 */}
         <div style={statBox('#27ae60')}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '38px', lineHeight: 1 }}>－</div>
           <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>今期成績</div>
