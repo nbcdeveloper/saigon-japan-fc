@@ -245,29 +245,57 @@ export default function Admin() {
   // Match CRUD
   const openAddMatch = () => {
     setEditMatch(null)
-    setMatchForm({ team: 'u40', opponent: '', match_date: '', venue: '', home_away: 'home', match_type: '公式戦', score_us: 0, score_them: 0, notes: '' })
+    setMatchForm({ event_id: '', team: 'u40', opponent: '', match_date: '', venue: '', home_away: 'home', match_type: '公式戦', score_us: 0, score_them: 0, notes: '' })
     setScorerInputs([{ member_id: '', minute: '' }])
     setMatchModal(true)
   }
 
   const openEditMatch = async (m) => {
     setEditMatch(m)
-    setMatchForm({ team: m.team, opponent: m.opponent, match_date: m.match_date, venue: m.venue || '', home_away: m.home_away, match_type: m.match_type, score_us: m.score_us, score_them: m.score_them, notes: m.notes || '' })
+    setMatchForm({ event_id: m.event_id || '', team: m.team, opponent: m.opponent, match_date: m.match_date, venue: m.venue || '', home_away: m.home_away, match_type: m.match_type, score_us: m.score_us, score_them: m.score_them, notes: m.notes || '' })
     const { data: g } = await supabase.from('goals').select('*').eq('match_id', m.id)
     setScorerInputs(g && g.length > 0 ? g.map(goal => ({ member_id: goal.member_id, minute: goal.minute || '' })) : [{ member_id: '', minute: '' }])
     setMatchModal(true)
+  }
+
+  // 過去の試合系イベント（スケジュールから）
+  const matchEvents = events.filter(ev =>
+    ['公式戦','フレンドリー','カップ戦','遠征'].includes(ev.event_type) &&
+    ev.event_date < new Date().toISOString().split('T')[0]
+  ).sort((a, b) => b.event_date.localeCompare(a.event_date))
+
+  const onSelectEvent = (eventId) => {
+    const ev = events.find(e => e.id === eventId)
+    if (ev) {
+      setMatchForm(prev => ({
+        ...prev,
+        event_id: ev.id,
+        team: ev.category === 'joint' ? prev.team : ev.category,
+        match_date: ev.event_date,
+        venue: ev.venue || '',
+        match_type: ev.event_type || '公式戦',
+      }))
+    } else {
+      setMatchForm(prev => ({ ...prev, event_id: '' }))
+    }
   }
 
   const saveMatch = async () => {
     if (!matchForm.opponent || !matchForm.match_date) return alert('相手チームと日付は必須です')
     const { data: { user } } = await supabase.auth.getUser()
     let matchId
+    const payload = {
+      ...matchForm,
+      event_id: matchForm.event_id || null,
+      score_us: parseInt(matchForm.score_us),
+      score_them: parseInt(matchForm.score_them)
+    }
     if (editMatch) {
-      await supabase.from('matches').update({ ...matchForm, score_us: parseInt(matchForm.score_us), score_them: parseInt(matchForm.score_them) }).eq('id', editMatch.id)
+      await supabase.from('matches').update(payload).eq('id', editMatch.id)
       matchId = editMatch.id
       await supabase.from('goals').delete().eq('match_id', matchId)
     } else {
-      const { data } = await supabase.from('matches').insert({ ...matchForm, score_us: parseInt(matchForm.score_us), score_them: parseInt(matchForm.score_them), created_by: user.id }).select().single()
+      const { data } = await supabase.from('matches').insert({ ...payload, created_by: user.id }).select().single()
       matchId = data.id
     }
     const validGoals = scorerInputs.filter(s => s.member_id).map(s => ({ match_id: matchId, member_id: s.member_id, minute: s.minute ? parseInt(s.minute) : null }))
@@ -771,6 +799,21 @@ export default function Admin() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }} onClick={() => setMatchModal(false)}>
           <div style={{ background: 'white', borderRadius: '12px', padding: '26px', width: '520px', maxWidth: '92vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>{editMatch ? '✏️ 試合結果編集' : '🏆 試合結果入力'}</div>
+
+            {/* スケジュールから選択 */}
+            <div style={{ marginBottom: '14px', padding: '12px 14px', background: '#f8f5f0', borderRadius: '8px' }}>
+              <label style={labelStyle}>📅 スケジュールから試合を選択（任意）</label>
+              <select style={inputStyle} value={matchForm.event_id} onChange={e => onSelectEvent(e.target.value)}>
+                <option value="">スケジュールから選択しない</option>
+                {matchEvents.map(ev => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.event_date} / {ev.title} / {ev.event_type}
+                  </option>
+                ))}
+              </select>
+              <div style={{ fontSize: '11px', color: '#8a7f7a', marginTop: '4px' }}>選択すると日付・会場・種別が自動入力されます</div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
               <div><label style={labelStyle}>チーム</label><select style={inputStyle} value={matchForm.team} onChange={e => setMatchForm({ ...matchForm, team: e.target.value })}><option value="u40">U-40</option><option value="o40">O-40</option></select></div>
               <div><label style={labelStyle}>日付 *</label><input style={inputStyle} type="date" value={matchForm.match_date} onChange={e => setMatchForm({ ...matchForm, match_date: e.target.value })} /></div>
