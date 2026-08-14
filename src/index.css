@@ -1,27 +1,14 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@400;500;700&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@400;500;700&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: 'Noto Sans JP', sans-serif;
-  background: #f0ebe5;
-  color: #2a2220;
-}
-
-#root {
-  width: 100%;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
+body { font-family: 'Noto Sans JP', sans-serif; background: #f0ebe5; color: #2a2220; }
+#root { width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #c0b8b0; border-radius: 99px; }
 @media (max-width: 768px) {
   .grid-2col { grid-template-columns: 1fr !important; }
-  .grid-3col { grid-template-columns: 1fr 1fr !important; } .hide-mobile { display: none !important; } .show-mobile { display: block !important; }  .hide-mobile { display: none !important; }  .show-mobile { display: block !important; }  .hide-mobile { display: none !important; }  .show-mobile { display: block !important; }
-}
-
+  .grid-3col { grid-template-columns: 1fr 1fr !important; }
+  .grid-4col { grid-template-columns: 1fr 1fr !important; }
   .hide-mobile { display: none !important; }
   .show-mobile { display: block !important; }
+}
