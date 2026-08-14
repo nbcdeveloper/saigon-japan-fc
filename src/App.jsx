@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './supabase'
 import Login from './pages/Login'
@@ -8,6 +8,8 @@ import Results from './pages/Results'
 import Attendance from './pages/Attendance'
 import Members from './pages/Members'
 import Announcements from './pages/Announcements'
+import Sponsors from './pages/Sponsors'
+import MyPage from './pages/MyPage'
 import Admin from './pages/Admin'
 import Layout from './components/Layout'
 
@@ -27,9 +29,9 @@ function App() {
 
   if (loading) return (
     <div style={{
-      display:'flex',alignItems:'center',justifyContent:'center',
-      minHeight:'100vh',background:'#2a2220',color:'#e8c84a',
-      fontFamily:'sans-serif',fontSize:'18px',letterSpacing:'2px'
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh', background: '#2a2220', color: '#e8c84a',
+      fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', letterSpacing: '2px'
     }}>
       LOADING...
     </div>
@@ -46,6 +48,8 @@ function App() {
           <Route path="attendance" element={<Attendance />} />
           <Route path="members" element={<Members />} />
           <Route path="announcements" element={<Announcements />} />
+          <Route path="sponsors" element={<Sponsors />} />
+          <Route path="mypage" element={<MyPage />} />
           <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>
