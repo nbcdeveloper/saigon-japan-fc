@@ -47,7 +47,7 @@ export default function Admin() {
   const [editMember, setEditMember] = useState(null)
   const [memberForm, setMemberForm] = useState({
     name: '', team: 'u40', position1: 'MF', position2: '',
-    birth_year: '', birth_month: '', birth_day: '', joined_at: '', status: 'active', dues_type: 'monthly',
+    birth_year: '', joined_at: '', status: 'active', dues_type: 'monthly',
     jersey_home: '', jersey_away: '', email: '', password: ''
   })
 
@@ -175,13 +175,13 @@ export default function Admin() {
   // Member CRUD
   const openAddMember = () => {
     setEditMember(null)
-    setMemberForm({ name: '', team: 'u40', position1: 'MF', position2: '', birth_year: '', birth_month: '', birth_day: '', joined_at: '', status: 'active', dues_type: 'monthly', jersey_home: '', jersey_away: '', email: '', password: '' })
+    setMemberForm({ name: '', team: 'u40', position1: 'MF', position2: '', birth_year: '', joined_at: '', status: 'active', dues_type: 'monthly', jersey_home: '', jersey_away: '', email: '', password: '' })
     setMemberModal(true)
   }
 
   const openEditMember = (m) => {
     setEditMember(m)
-    setMemberForm({ name: m.name || '', team: m.team || 'u40', position1: m.position1 || 'MF', position2: m.position2 || '', birth_year: m.birth_year || '', birth_month: m.birth_month || '', birth_day: m.birth_day || '', joined_at: m.joined_at || '', status: m.status || 'active', dues_type: m.dues_type || 'monthly', jersey_home: m.jersey_home || '', jersey_away: m.jersey_away || '', email: '', password: '' })
+    setMemberForm({ name: m.name || '', team: m.team || 'u40', position1: m.position1 || 'MF', position2: m.position2 || '', birth_year: m.birth_year || '', joined_at: m.joined_at || '', status: m.status || 'active', dues_type: m.dues_type || 'monthly', jersey_home: m.jersey_home || '', jersey_away: m.jersey_away || '', email: '', password: '' })
     setMemberModal(true)
   }
 
@@ -191,8 +191,6 @@ export default function Admin() {
       name: memberForm.name, team: memberForm.team, position1: memberForm.position1,
       position2: memberForm.position2 || null,
       birth_year: memberForm.birth_year ? parseInt(memberForm.birth_year) : null,
-      birth_month: memberForm.birth_month ? parseInt(memberForm.birth_month) : null,
-      birth_day: memberForm.birth_day ? parseInt(memberForm.birth_day) : null,
       joined_at: memberForm.joined_at || null, status: memberForm.status, dues_type: memberForm.dues_type,
       jersey_home: memberForm.jersey_home ? parseInt(memberForm.jersey_home) : null,
       jersey_away: memberForm.jersey_away ? parseInt(memberForm.jersey_away) : null,
@@ -245,57 +243,29 @@ export default function Admin() {
   // Match CRUD
   const openAddMatch = () => {
     setEditMatch(null)
-    setMatchForm({ event_id: '', team: 'u40', opponent: '', match_date: '', venue: '', home_away: 'home', match_type: '公式戦', score_us: 0, score_them: 0, notes: '' })
+    setMatchForm({ team: 'u40', opponent: '', match_date: '', venue: '', home_away: 'home', match_type: '公式戦', score_us: 0, score_them: 0, notes: '' })
     setScorerInputs([{ member_id: '', minute: '' }])
     setMatchModal(true)
   }
 
   const openEditMatch = async (m) => {
     setEditMatch(m)
-    setMatchForm({ event_id: m.event_id || '', team: m.team, opponent: m.opponent, match_date: m.match_date, venue: m.venue || '', home_away: m.home_away, match_type: m.match_type, score_us: m.score_us, score_them: m.score_them, notes: m.notes || '' })
+    setMatchForm({ team: m.team, opponent: m.opponent, match_date: m.match_date, venue: m.venue || '', home_away: m.home_away, match_type: m.match_type, score_us: m.score_us, score_them: m.score_them, notes: m.notes || '' })
     const { data: g } = await supabase.from('goals').select('*').eq('match_id', m.id)
     setScorerInputs(g && g.length > 0 ? g.map(goal => ({ member_id: goal.member_id, minute: goal.minute || '' })) : [{ member_id: '', minute: '' }])
     setMatchModal(true)
-  }
-
-  // 過去の試合系イベント（スケジュールから）
-  const matchEvents = events.filter(ev =>
-    ['公式戦','フレンドリー','カップ戦','遠征'].includes(ev.event_type) &&
-    ev.event_date < new Date().toISOString().split('T')[0]
-  ).sort((a, b) => b.event_date.localeCompare(a.event_date))
-
-  const onSelectEvent = (eventId) => {
-    const ev = events.find(e => e.id === eventId)
-    if (ev) {
-      setMatchForm(prev => ({
-        ...prev,
-        event_id: ev.id,
-        team: ev.category === 'joint' ? prev.team : ev.category,
-        match_date: ev.event_date,
-        venue: ev.venue || '',
-        match_type: ev.event_type || '公式戦',
-      }))
-    } else {
-      setMatchForm(prev => ({ ...prev, event_id: '' }))
-    }
   }
 
   const saveMatch = async () => {
     if (!matchForm.opponent || !matchForm.match_date) return alert('相手チームと日付は必須です')
     const { data: { user } } = await supabase.auth.getUser()
     let matchId
-    const payload = {
-      ...matchForm,
-      event_id: matchForm.event_id || null,
-      score_us: parseInt(matchForm.score_us),
-      score_them: parseInt(matchForm.score_them)
-    }
     if (editMatch) {
-      await supabase.from('matches').update(payload).eq('id', editMatch.id)
+      await supabase.from('matches').update({ ...matchForm, score_us: parseInt(matchForm.score_us), score_them: parseInt(matchForm.score_them) }).eq('id', editMatch.id)
       matchId = editMatch.id
       await supabase.from('goals').delete().eq('match_id', matchId)
     } else {
-      const { data } = await supabase.from('matches').insert({ ...payload, created_by: user.id }).select().single()
+      const { data } = await supabase.from('matches').insert({ ...matchForm, score_us: parseInt(matchForm.score_us), score_them: parseInt(matchForm.score_them), created_by: user.id }).select().single()
       matchId = data.id
     }
     const validGoals = scorerInputs.filter(s => s.member_id).map(s => ({ match_id: matchId, member_id: s.member_id, minute: s.minute ? parseInt(s.minute) : null }))
@@ -420,7 +390,7 @@ export default function Admin() {
                         <span style={{ background: '#e8e0d8', color: '#2a2220', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px', marginRight: '3px' }}>{m.position1}</span>
                         {m.position2 && <span style={{ background: '#e8e0d8', color: '#2a2220', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>{m.position2}</span>}
                       </td>
-                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.birth_year ? `${m.birth_year}年${m.birth_month ? m.birth_month + '月' : ''}${m.birth_day ? m.birth_day + '日' : ''}` : '－'}</td>
+                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.birth_year || '－'}</td>
                       <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.joined_at ? m.joined_at.slice(0,7).replace('-','/') : '－'}</td>
                       <td style={{ padding: '9px 12px' }}>
                         <span style={{ background: m.dues_type === 'spot' ? '#fff3cd' : '#e8e0d8', color: m.dues_type === 'spot' ? '#856404' : '#8a7f7a', fontSize: '10.5px', fontWeight: '600', padding: '2px 6px', borderRadius: '4px' }}>
@@ -511,7 +481,7 @@ export default function Admin() {
                         <span style={{ marginLeft: '8px' }}>{resultTag(m)}</span>
                       </td>
                       <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.match_type}</td>
-                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.home_away === 'home' ? '👕' : m.home_away === 'away' ? '👕' : '🏟️'}</td>
+                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.home_away === 'home' ? '🏠' : m.home_away === 'away' ? '✈️' : '🏟️'}</td>
                       <td style={{ padding: '9px 12px' }}>
                         <div style={{ display: 'flex', gap: '4px' }}>
                           <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '4px 9px', fontSize: '11.5px' })} onClick={() => openEditMatch(m)}>編集</button>
@@ -727,20 +697,6 @@ export default function Admin() {
               <div><label style={labelStyle}>ポジション１</label><select style={inputStyle} value={memberForm.position1} onChange={e => setMemberForm({ ...memberForm, position1: e.target.value })}>{['GK','DF','MF','FW'].map(p => <option key={p}>{p}</option>)}</select></div>
               <div><label style={labelStyle}>ポジション２（任意）</label><select style={inputStyle} value={memberForm.position2} onChange={e => setMemberForm({ ...memberForm, position2: e.target.value })}><option value="">－</option>{['GK','DF','MF','FW'].map(p => <option key={p}>{p}</option>)}</select></div>
               <div><label style={labelStyle}>生年</label><input style={inputStyle} type="number" value={memberForm.birth_year} onChange={e => setMemberForm({ ...memberForm, birth_year: e.target.value })} placeholder="例：1990" /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                <div><label style={labelStyle}>誕生月</label>
-                  <select style={inputStyle} value={memberForm.birth_month} onChange={e => setMemberForm({ ...memberForm, birth_month: e.target.value })}>
-                    <option value="">－</option>
-                    {Array.from({length:12},(_,i)=><option key={i+1} value={i+1}>{i+1}月</option>)}
-                  </select>
-                </div>
-                <div><label style={labelStyle}>誕生日</label>
-                  <select style={inputStyle} value={memberForm.birth_day} onChange={e => setMemberForm({ ...memberForm, birth_day: e.target.value })}>
-                    <option value="">－</option>
-                    {Array.from({length:31},(_,i)=><option key={i+1} value={i+1}>{i+1}日</option>)}
-                  </select>
-                </div>
-              </div>
               <div><label style={labelStyle}>入部年月</label><input style={inputStyle} type="month" value={memberForm.joined_at?.slice(0,7) || ''} onChange={e => setMemberForm({ ...memberForm, joined_at: e.target.value + '-01' })} /></div>
               <div><label style={labelStyle}>Home 背番号</label><input style={inputStyle} type="number" value={memberForm.jersey_home} onChange={e => setMemberForm({ ...memberForm, jersey_home: e.target.value })} /></div>
               <div><label style={labelStyle}>Away 背番号</label><input style={inputStyle} type="number" value={memberForm.jersey_away} onChange={e => setMemberForm({ ...memberForm, jersey_away: e.target.value })} /></div>
@@ -799,27 +755,12 @@ export default function Admin() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }} onClick={() => setMatchModal(false)}>
           <div style={{ background: 'white', borderRadius: '12px', padding: '26px', width: '520px', maxWidth: '92vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>{editMatch ? '✏️ 試合結果編集' : '🏆 試合結果入力'}</div>
-
-            {/* スケジュールから選択 */}
-            <div style={{ marginBottom: '14px', padding: '12px 14px', background: '#f8f5f0', borderRadius: '8px' }}>
-              <label style={labelStyle}>📅 スケジュールから試合を選択（任意）</label>
-              <select style={inputStyle} value={matchForm.event_id} onChange={e => onSelectEvent(e.target.value)}>
-                <option value="">スケジュールから選択しない</option>
-                {matchEvents.map(ev => (
-                  <option key={ev.id} value={ev.id}>
-                    {ev.event_date} / {ev.title} / {ev.event_type}
-                  </option>
-                ))}
-              </select>
-              <div style={{ fontSize: '11px', color: '#8a7f7a', marginTop: '4px' }}>選択すると日付・会場・種別が自動入力されます</div>
-            </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
               <div><label style={labelStyle}>チーム</label><select style={inputStyle} value={matchForm.team} onChange={e => setMatchForm({ ...matchForm, team: e.target.value })}><option value="u40">U-40</option><option value="o40">O-40</option></select></div>
               <div><label style={labelStyle}>日付 *</label><input style={inputStyle} type="date" value={matchForm.match_date} onChange={e => setMatchForm({ ...matchForm, match_date: e.target.value })} /></div>
               <div><label style={labelStyle}>相手チーム *</label><input style={inputStyle} value={matchForm.opponent} onChange={e => setMatchForm({ ...matchForm, opponent: e.target.value })} placeholder="例：ハノイ日本人FC" /></div>
               <div><label style={labelStyle}>種別</label><select style={inputStyle} value={matchForm.match_type} onChange={e => setMatchForm({ ...matchForm, match_type: e.target.value })}>{['公式戦','フレンドリー','カップ戦','遠征'].map(t => <option key={t}>{t}</option>)}</select></div>
-              <div><label style={labelStyle}>H / A</label><select style={inputStyle} value={matchForm.home_away} onChange={e => setMatchForm({ ...matchForm, home_away: e.target.value })}><option value="home">👕 ホーム</option><option value="away">👕 アウェイ</option><option value="neutral">🏟️ 中立地</option></select></div>
+              <div><label style={labelStyle}>H / A</label><select style={inputStyle} value={matchForm.home_away} onChange={e => setMatchForm({ ...matchForm, home_away: e.target.value })}><option value="home">🏠 ホーム</option><option value="away">✈️ アウェイ</option><option value="neutral">🏟️ 中立地</option></select></div>
               <div><label style={labelStyle}>会場</label><input style={inputStyle} value={matchForm.venue} onChange={e => setMatchForm({ ...matchForm, venue: e.target.value })} placeholder="例：Thong Nhat Stadium" /></div>
             </div>
 
