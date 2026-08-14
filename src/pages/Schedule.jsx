@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+
 export default function Schedule() {
   const [upcomingEvents, setUpcomingEvents] = useState([])
   const [pastEvents, setPastEvents] = useState([])
@@ -8,31 +10,38 @@ export default function Schedule() {
   const [filter, setFilter] = useState('all')
   const [attending, setAttending] = useState({})
   const [attendanceCounts, setAttendanceCounts] = useState({})
+  const [attendanceNames, setAttendanceNames] = useState({})
+  const [members, setMembers] = useState([])
   const [modal, setModal] = useState(null)
   const [comment, setComment] = useState('')
   const [status, setStatus] = useState('present')
   const [userId, setUserId] = useState(null)
   const [showPast, setShowPast] = useState(false)
+  const [expandedEvents, setExpandedEvents] = useState({})
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         setUserId(user.id)
-        fetchEvents(user.id)
+        fetchAll(user.id)
       }
     })
   }, [])
 
-  const fetchEvents = async (uid) => {
+  const fetchAll = async (uid) => {
     const today = new Date().toISOString().split('T')[0]
-    const { data: upcoming } = await supabase.from('events').select('*').gte('event_date', today).order('event_date')
-    const { data: past } = await supabase.from('events').select('*').lt('event_date', today).order('event_date', { ascending: false }).limit(10)
+    const [{ data: upcoming }, { data: past }, { data: allMembers }] = await Promise.all([
+      supabase.from('events').select('*').gte('event_date', today).order('event_date'),
+      supabase.from('events').select('*').lt('event_date', today).order('event_date', { ascending: false }).limit(10),
+      supabase.from('profiles').select('id, name, team').eq('status', 'active'),
+    ])
     if (upcoming) setUpcomingEvents(upcoming)
     if (past) setPastEvents(past)
+    if (allMembers) setMembers(allMembers)
     const allIds = [...(upcoming || []), ...(past || [])].map(e => e.id)
     if (allIds.length > 0) {
       fetchMyAttendance(uid, allIds)
-      fetchAttendanceCounts(allIds)
+      fetchAttendanceData(allIds, allMembers || [])
     }
     setLoading(false)
   }
@@ -46,17 +55,26 @@ export default function Schedule() {
     }
   }
 
-  const fetchAttendanceCounts = async (eventIds) => {
-    const { data } = await supabase.from('attendance').select('event_id, status').in('event_id', eventIds)
+  const fetchAttendanceData = async (eventIds, allMembers) => {
+    const { data } = await supabase.from('attendance').select('*').in('event_id', eventIds)
     if (data) {
       const counts = {}
-      eventIds.forEach(id => { counts[id] = { present: 0, absent: 0, undecided: 0, late: 0, early_leave: 0 } })
+      const names = {}
+      eventIds.forEach(id => {
+        counts[id] = { present: 0, absent: 0, late: 0, early_leave: 0, undecided: 0 }
+        names[id] = { present: [], absent: [], late: [], early_leave: [], undecided: [] }
+      })
       data.forEach(a => {
-        if (counts[a.event_id]) {
-          counts[a.event_id][a.status] = (counts[a.event_id][a.status] || 0) + 1
+        if (counts[a.event_id] && a.status in counts[a.event_id]) {
+          counts[a.event_id][a.status]++
+          const member = allMembers.find(m => m.id === a.member_id)
+          if (member) {
+            names[a.event_id][a.status].push({ name: member.name, comment: a.comment || '' })
+          }
         }
       })
       setAttendanceCounts(counts)
+      setAttendanceNames(names)
     }
   }
 
@@ -70,7 +88,7 @@ export default function Schedule() {
     }
     const allIds = [...upcomingEvents, ...pastEvents].map(e => e.id)
     fetchMyAttendance(userId, allIds)
-    fetchAttendanceCounts(allIds)
+    fetchAttendanceData(allIds, members)
     setModal(null)
     setComment('')
     setStatus('present')
@@ -99,35 +117,71 @@ export default function Schedule() {
   const EventCard = ({ ev, isPast }) => {
     const cat = catInfo(ev.category)
     const d = new Date(ev.event_date)
+    const weekday = WEEKDAYS[d.getDay()]
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6
     const att = attending[ev.id]
     const counts = attendanceCounts[ev.id] || {}
+    const names = attendanceNames[ev.id] || {}
     const totalResponded = (counts.present || 0) + (counts.absent || 0) + (counts.late || 0) + (counts.early_leave || 0) + (counts.undecided || 0)
+
+    // 未回答メンバー（そのイベントのカテゴリに所属するメンバー）
+    const targetMembers = members.filter(m => ev.category === 'joint' || m.team === ev.category)
+    const respondedIds = Object.values(names).flat().map(n => n.name)
+    const noAnswerCount = targetMembers.length - totalResponded
+
+    const isExpanded = expandedEvents[ev.id]
 
     return (
       <div style={{
-        background: isPast ? '#fafafa' : 'white', borderRadius: '8px', padding: '13px 16px',
-        marginBottom: '9px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
+        background: isPast ? '#fafafa' : 'white', borderRadius: '10px', padding: '16px 18px',
+        marginBottom: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
         borderLeft: `4px solid ${isPast ? '#ccc' : '#e8c84a'}`, opacity: isPast ? 0.75 : 1
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ textAlign: 'center', minWidth: '40px' }}>
-            <div style={{ fontSize: '24px', fontFamily: 'serif', lineHeight: 1, color: isPast ? '#aaa' : '#2a2220' }}>{d.getDate()}</div>
-            <div style={{ fontSize: '9.5px', color: '#8a7f7a', textTransform: 'uppercase' }}>
-              {d.toLocaleString('en', { month: 'short' })}
-            </div>
-          </div>
+        {/* ヘッダー行 */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: '600', fontSize: '13.5px', color: isPast ? '#888' : '#2a2220' }}>{ev.title}</div>
-            <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '2px' }}>
-              📍 {ev.venue || '未定'}　⏰ KO {ev.kickoff_time ? ev.kickoff_time.slice(0,5) : '未定'}
-              {ev.meetup_time && `　集合 ${ev.meetup_time.slice(0,5)}`}
+            {/* 日付・曜日 */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', lineHeight: 1, color: isPast ? '#aaa' : '#2a2220' }}>{d.getDate()}</span>
+              <span style={{ fontSize: '11px', color: '#8a7f7a' }}>{d.toLocaleString('en', { month: 'short' }).toUpperCase()}</span>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: isPast ? '#aaa' : isWeekend ? (d.getDay() === 0 ? '#e74c3c' : '#2a5fa5') : '#2a2220' }}>
+                （{weekday}）
+              </span>
+              <span style={{ background: cat.bg, color: cat.color, fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px' }}>{cat.label}</span>
             </div>
-            {ev.meetup_place && <div style={{ fontSize: '11px', color: '#8a7f7a' }}>🚩 {ev.meetup_place}</div>}
+            {/* タイトル */}
+            <div style={{ fontWeight: '700', fontSize: '14px', color: isPast ? '#888' : '#2a2220', marginBottom: '8px' }}>{ev.title}</div>
+
+            {/* 場所・時間情報 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {(ev.kickoff_time || ev.end_time) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px' }}>
+                  <span style={{ background: '#e8c84a', color: '#2a2220', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px', flexShrink: 0 }}>
+                    {ev.event_type === '練習' || ev.event_type === '合同練習' ? '開始' : 'KO'}
+                  </span>
+                  <span style={{ fontWeight: '600', color: '#2a2220' }}>
+                    {ev.kickoff_time ? ev.kickoff_time.slice(0,5) : ''}
+                    {ev.end_time ? ` 〜 ${ev.end_time.slice(0,5)}` : ''}
+                  </span>
+                  {ev.venue && <span style={{ color: '#8a7f7a' }}>｜</span>}
+                  {ev.venue && <span style={{ color: '#555' }}>📍 {ev.venue}</span>}
+                </div>
+              )}
+              {!ev.kickoff_time && ev.venue && (
+                <div style={{ fontSize: '12.5px', color: '#555' }}>📍 {ev.venue}</div>
+              )}
+              {(ev.meetup_place || ev.meetup_time) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                  <span style={{ background: '#e8e0d8', color: '#8a7f7a', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px', flexShrink: 0 }}>集合</span>
+                  {ev.meetup_time && <span style={{ fontWeight: '600', color: '#555' }}>{ev.meetup_time.slice(0,5)}</span>}
+                  {ev.meetup_place && <span style={{ color: '#555' }}>🚩 {ev.meetup_place}</span>}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* 出欠ボタン */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
-            <span style={{ background: cat.bg, color: cat.color, fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px' }}>
-              {cat.label}
-            </span>
             {!isPast && (att ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                 <span style={{ fontSize: '11px', color: '#27ae60', fontWeight: '600' }}>{statusLabel(att.status)}</span>
@@ -136,18 +190,68 @@ export default function Schedule() {
               </div>
             ) : (
               <button onClick={() => { setModal(ev); setStatus('present'); setComment('') }}
-                style={{ padding: '5px 10px', background: '#e8c84a', color: '#2a2220', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>出欠登録</button>
+                style={{ padding: '6px 12px', background: '#e8c84a', color: '#2a2220', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>出欠登録</button>
             ))}
             {isPast && att && <span style={{ fontSize: '11px', color: '#8a7f7a' }}>{statusLabel(att.status)}</span>}
           </div>
         </div>
 
-        {/* 出欠カウント */}
+        {/* 出欠集計 */}
         {totalResponded > 0 && (
-          <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #f0ebe5', display: 'flex', gap: '12px', fontSize: '12px' }}>
-            <span style={{ color: '#27ae60', fontWeight: '600' }}>✅ 参加 {(counts.present || 0) + (counts.late || 0) + (counts.early_leave || 0)}名</span>
-            <span style={{ color: '#e74c3c', fontWeight: '600' }}>❌ 欠席 {counts.absent || 0}名</span>
-            <span style={{ color: '#8a7f7a' }}>❓ 未定 {counts.undecided || 0}名</span>
+          <div style={{ borderTop: '1px solid #f0ebe5', paddingTop: '10px' }}>
+            {/* カウント行 */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '6px', alignItems: 'center' }}>
+              {[
+                { key: 'present', label: '✅ 出席', color: '#27ae60', count: (counts.present || 0) + (counts.late || 0) + (counts.early_leave || 0) },
+                { key: 'absent', label: '❌ 欠席', color: '#e74c3c', count: counts.absent || 0 },
+                { key: 'undecided', label: '❓ 未定', color: '#f39c12', count: counts.undecided || 0 },
+                { key: 'noanswer', label: '📝 未回答', color: '#8a7f7a', count: noAnswerCount > 0 ? noAnswerCount : 0 },
+              ].map(({ key, label, color, count }) => count > 0 && (
+                <span key={key} style={{ fontSize: '12px', fontWeight: '600', color }}>
+                  {label} {count}名
+                </span>
+              ))}
+              <button onClick={() => setExpandedEvents(prev => ({ ...prev, [ev.id]: !prev[ev.id] }))}
+                style={{ marginLeft: 'auto', fontSize: '11px', color: '#8a7f7a', background: 'transparent', border: '1px solid #e0dbd5', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer' }}>
+                {isExpanded ? '▲ 閉じる' : '▼ 名前を見る'}
+              </button>
+            </div>
+
+            {/* 名前一覧（展開時） */}
+            {isExpanded && (
+              <div style={{ background: '#f8f5f0', borderRadius: '8px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[
+                  { key: 'present', label: '✅ 出席', color: '#27ae60', list: [...(names.present || []), ...(names.late || []), ...(names.early_leave || [])] },
+                  { key: 'absent', label: '❌ 欠席', color: '#e74c3c', list: names.absent || [] },
+                  { key: 'undecided', label: '❓ 未定', color: '#f39c12', list: names.undecided || [] },
+                ].map(({ key, label, color, list }) => list.length > 0 && (
+                  <div key={key}>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color, marginBottom: '4px' }}>{label}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {list.map((item, i) => (
+                        <div key={i} style={{ fontSize: '12px' }}>
+                          <span style={{ background: 'white', border: `1px solid ${color}30`, borderRadius: '4px', padding: '2px 8px', color: '#2a2220' }}>{item.name}</span>
+                          {item.comment && <span style={{ fontSize: '11px', color: '#8a7f7a', marginLeft: '4px' }}>「{item.comment}」</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {noAnswerCount > 0 && (
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: '#8a7f7a', marginBottom: '4px' }}>📝 未回答</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {targetMembers
+                        .filter(m => !Object.values(names).flat().some(n => n.name === m.name))
+                        .map((m, i) => (
+                          <span key={i} style={{ fontSize: '12px', background: 'white', border: '1px solid #e0dbd5', borderRadius: '4px', padding: '2px 8px', color: '#8a7f7a' }}>{m.name}</span>
+                        ))
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -158,7 +262,7 @@ export default function Schedule() {
     if (evs.length === 0) return null
     return (
       <div style={{ marginBottom: '22px' }}>
-        <div style={{ fontSize: '14px', fontWeight: 'bold', color, marginBottom: '10px', letterSpacing: '1px' }}>■ {title}</div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '14px', fontWeight: 'bold', color, marginBottom: '10px', letterSpacing: '1px' }}>■ {title}</div>
         {evs.map(ev => <EventCard key={ev.id} ev={ev} isPast={isPast} />)}
       </div>
     )
@@ -170,8 +274,8 @@ export default function Schedule() {
   const paG = { u40: filteredPast.filter(e => e.category === 'u40'), o40: filteredPast.filter(e => e.category === 'o40'), joint: filteredPast.filter(e => e.category === 'joint') }
 
   return (
-    <div style={{ fontFamily: 'sans-serif' }}>
-      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2a2220', letterSpacing: '2px', marginBottom: '20px' }}>スケジュール・出欠</div>
+    <div style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '2px', color: '#2a2220', marginBottom: '20px' }}>スケジュール・出欠</div>
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {[['all','全体'],['u40','U-40'],['o40','O-40'],['joint','合同']].map(([v,l]) => (
           <div key={v} style={tabStyle(v)} onClick={() => setFilter(v)}>{l}</div>
@@ -217,15 +321,15 @@ export default function Schedule() {
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }} onClick={() => setModal(null)}>
           <div style={{ background: 'white', borderRadius: '12px', padding: '26px', width: '440px', maxWidth: '92vw', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '1px', marginBottom: '14px' }}>📅 出欠登録</div>
-            <div style={{ fontWeight: '600', marginBottom: '6px' }}>{modal.title}</div>
-            <div style={{ fontSize: '12.5px', color: '#8a7f7a', marginBottom: '16px' }}>
-              📅 {modal.event_date}　⏰ {modal.kickoff_time ? modal.kickoff_time.slice(0,5) : '未定'}　📍 {modal.venue || '未定'}
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '19px', letterSpacing: '1px', marginBottom: '14px' }}>📅 出欠登録</div>
+            <div style={{ fontWeight: '600', marginBottom: '4px' }}>{modal.title}</div>
+            <div style={{ fontSize: '12px', color: '#8a7f7a', marginBottom: '16px' }}>
+              {modal.event_date} / {modal.kickoff_time ? modal.kickoff_time.slice(0,5) : '時間未定'} / {modal.venue || '場所未定'}
             </div>
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#8a7f7a', display: 'block', marginBottom: '4px' }}>出欠</label>
               <select value={status} onChange={e => setStatus(e.target.value)}
-                style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #e0dbd5', borderRadius: '6px', fontSize: '13px' }}>
+                style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #e0dbd5', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit' }}>
                 <option value="present">✅ 出席</option>
                 <option value="absent">❌ 欠席</option>
                 <option value="late">⏰ 遅刻</option>
@@ -236,7 +340,7 @@ export default function Schedule() {
             <div style={{ marginBottom: '18px' }}>
               <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#8a7f7a', display: 'block', marginBottom: '4px' }}>コメント（任意）</label>
               <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="例：15分遅れます" rows={2}
-                style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #e0dbd5', borderRadius: '6px', fontSize: '13px', resize: 'none' }} />
+                style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #e0dbd5', borderRadius: '6px', fontSize: '13px', resize: 'none', fontFamily: 'inherit' }} />
             </div>
             <div style={{ display: 'flex', gap: '9px', justifyContent: 'flex-end' }}>
               <button onClick={() => setModal(null)} style={{ padding: '8px 16px', background: 'transparent', border: '1.5px solid #ddd', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}>キャンセル</button>
