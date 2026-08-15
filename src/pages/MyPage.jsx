@@ -13,7 +13,7 @@ const labelStyle = {
 export default function MyPage() {
   const [profile, setProfile] = useState(null)
   const [form, setForm] = useState({
-    name: '', position1: 'MF', position2: '', birth_year: '', joined_at: ''
+    name: '', position1: 'MF', position2: '', birth_year: '', birth_month: '', birth_day: '', joined_at: ''
   })
   const [pwForm, setPwForm] = useState({ password: '', confirm: '' })
   const [loading, setLoading] = useState(true)
@@ -35,6 +35,8 @@ export default function MyPage() {
         position1: data.position1 || 'MF',
         position2: data.position2 || '',
         birth_year: data.birth_year || '',
+        birth_month: data.birth_month || '',
+        birth_day: data.birth_day || '',
         joined_at: data.joined_at?.slice(0, 7) || ''
       })
     }
@@ -50,6 +52,8 @@ export default function MyPage() {
       position1: form.position1,
       position2: form.position2 || null,
       birth_year: form.birth_year ? parseInt(form.birth_year) : null,
+      birth_month: form.birth_month ? parseInt(form.birth_month) : null,
+      birth_day: form.birth_day ? parseInt(form.birth_day) : null,
       joined_at: form.joined_at ? form.joined_at + '-01' : null,
     }).eq('id', user.id)
     setSaving(false)
@@ -108,7 +112,7 @@ export default function MyPage() {
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '16px' }}>
           👤 プロフィール編集
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+        <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
           <div style={{ gridColumn: '1/-1' }}>
             <label style={labelStyle}>氏名 *</label>
             <input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="例：田中 健太" />
@@ -134,6 +138,20 @@ export default function MyPage() {
             <label style={labelStyle}>入部年月</label>
             <input style={inputStyle} type="month" value={form.joined_at} onChange={e => setForm({ ...form, joined_at: e.target.value })} />
           </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+            <div><label style={labelStyle}>誕生月</label>
+              <select style={inputStyle} value={form.birth_month} onChange={e => setForm({ ...form, birth_month: e.target.value })}>
+                <option value="">－</option>
+                {Array.from({length:12},(_,i)=><option key={i+1} value={i+1}>{i+1}月</option>)}
+              </select>
+            </div>
+            <div><label style={labelStyle}>誕生日</label>
+              <select style={inputStyle} value={form.birth_day} onChange={e => setForm({ ...form, birth_day: e.target.value })}>
+                <option value="">－</option>
+                {Array.from({length:31},(_,i)=><option key={i+1} value={i+1}>{i+1}日</option>)}
+              </select>
+            </div>
+          </div>
         </div>
         {message && <div style={{ fontSize: '13px', marginBottom: '12px', color: message.includes('✅') ? '#27ae60' : '#e74c3c' }}>{message}</div>}
         <button onClick={saveProfile} disabled={saving}
@@ -148,7 +166,7 @@ export default function MyPage() {
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '16px' }}>
           🔒 パスワード変更
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+        <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
           <div>
             <label style={labelStyle}>新しいパスワード</label>
             <input style={inputStyle} type="password" value={pwForm.password} onChange={e => setPwForm({ ...pwForm, password: e.target.value })} placeholder="6文字以上" />
