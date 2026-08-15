@@ -19,6 +19,12 @@ export default function Schedule() {
   const [showPast, setShowPast] = useState(false)
   const [expandedEvents, setExpandedEvents] = useState({})
 
+  // カレンダー表示
+  const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
+  const [calendarEvents, setCalendarEvents] = useState([])
+  const [calendarLoading, setCalendarLoading] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
@@ -44,6 +50,22 @@ export default function Schedule() {
       fetchAttendanceData(allIds, allMembers || [])
     }
     setLoading(false)
+  }
+
+  useEffect(() => {
+    if (filter === 'calendar') fetchCalendarEvents(calendarMonth)
+  }, [filter, calendarMonth])
+
+  const fetchCalendarEvents = async (monthDate) => {
+    setCalendarLoading(true)
+    const year = monthDate.getFullYear()
+    const month = monthDate.getMonth()
+    const from = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const to = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    const { data } = await supabase.from('events').select('*').gte('event_date', from).lte('event_date', to).order('event_date')
+    if (data) setCalendarEvents(data)
+    setCalendarLoading(false)
   }
 
   const fetchMyAttendance = async (uid, eventIds) => {
@@ -86,7 +108,7 @@ export default function Schedule() {
     } else {
       await supabase.from('attendance').insert({ event_id: modal.id, member_id: userId, status, comment })
     }
-    const allIds = [...upcomingEvents, ...pastEvents].map(e => e.id)
+    const allIds = [...new Set([...upcomingEvents, ...pastEvents, ...calendarEvents].map(e => e.id))]
     fetchMyAttendance(userId, allIds)
     fetchAttendanceData(allIds, members)
     setModal(null)
@@ -268,6 +290,112 @@ export default function Schedule() {
     )
   }
 
+  const buildCalendarGrid = (monthDate) => {
+    const year = monthDate.getFullYear()
+    const month = monthDate.getMonth()
+    const firstDayOfWeek = new Date(year, month, 1).getDay()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const cells = []
+    for (let i = 0; i < firstDayOfWeek; i++) cells.push(null)
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+    while (cells.length % 7 !== 0) cells.push(null)
+    const weeks = []
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
+    return weeks
+  }
+
+  const CalendarView = () => {
+    const weeks = buildCalendarGrid(calendarMonth)
+    const monthLabel = `${calendarMonth.getFullYear()}年 ${calendarMonth.getMonth() + 1}月`
+    const todayStr = new Date().toISOString().split('T')[0]
+    const dateStrOf = (day) => `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const eventsOnDay = (day) => day ? calendarEvents.filter(e => e.event_date === dateStrOf(day)) : []
+    const selectedDayEvents = calendarEvents.filter(e => e.event_date === selectedDate)
+
+    const navBtnStyle = { padding: '5px 14px', background: '#f0ebe5', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', color: '#2a2220', fontWeight: '600' }
+
+    const goPrevMonth = () => { setSelectedDate(null); setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)) }
+    const goNextMonth = () => { setSelectedDate(null); setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)) }
+    const goToday = () => { const d = new Date(); setCalendarMonth(new Date(d.getFullYear(), d.getMonth(), 1)); setSelectedDate(todayStr) }
+
+    return (
+      <div>
+        <div style={{ background: 'white', borderRadius: '10px', padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', gap: '8px' }}>
+            <button onClick={goPrevMonth} style={navBtnStyle}>◀</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '19px', letterSpacing: '1px', color: '#2a2220' }}>{monthLabel}</span>
+              <span onClick={goToday} style={{ fontSize: '11px', color: '#8a7f7a', cursor: 'pointer', textDecoration: 'underline' }}>今月</span>
+            </div>
+            <button onClick={goNextMonth} style={navBtnStyle}>▶</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '3px', marginBottom: '3px' }}>
+            {WEEKDAYS.map((w, i) => (
+              <div key={w} style={{ textAlign: 'center', fontSize: '10.5px', fontWeight: '700', color: i === 0 ? '#e74c3c' : i === 6 ? '#2a5fa5' : '#8a7f7a', padding: '2px 0' }}>{w}</div>
+            ))}
+          </div>
+
+          {calendarLoading ? (
+            <div style={{ color: '#8a7f7a', fontSize: '13px', textAlign: 'center', padding: '20px' }}>読み込み中...</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              {weeks.map((week, wi) => (
+                <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '3px' }}>
+                  {week.map((day, di) => {
+                    const dStr = day ? dateStrOf(day) : null
+                    const isToday = dStr === todayStr
+                    const isSelected = dStr === selectedDate
+                    const dayEvents = eventsOnDay(day)
+                    return (
+                      <div key={di} onClick={() => day && setSelectedDate(dStr)} style={{
+                        minHeight: '46px', borderRadius: '6px', padding: '3px',
+                        background: !day ? 'transparent' : isSelected ? '#2a2220' : isToday ? '#fef6e0' : '#fafafa',
+                        border: isToday && !isSelected ? '1.5px solid #e8c84a' : '1px solid #f0ebe5',
+                        cursor: day ? 'pointer' : 'default',
+                      }}>
+                        {day && (
+                          <>
+                            <div style={{
+                              fontSize: '11px', fontWeight: isToday ? '700' : '500',
+                              color: isSelected ? 'white' : di === 0 ? '#e74c3c' : di === 6 ? '#2a5fa5' : '#8a7f7a',
+                              marginBottom: '2px'
+                            }}>{day}</div>
+                            {dayEvents.length > 0 && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+                                {dayEvents.slice(0, 4).map(ev => {
+                                  const cat = catInfo(ev.category)
+                                  return <span key={ev.id} style={{ width: '6px', height: '6px', borderRadius: '50%', background: isSelected ? '#e8c84a' : cat.color, display: 'inline-block' }} />
+                                })}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div style={{ fontSize: '13px', fontWeight: '700', color: '#2a2220', marginBottom: '10px' }}>
+            {selectedDate ? `📅 ${selectedDate.replace(/-/g, '/')} の予定` : '日付を選択してください'}
+          </div>
+          {selectedDate && (selectedDayEvents.length === 0 ? (
+            <div style={{ background: 'white', borderRadius: '10px', padding: '18px', textAlign: 'center', color: '#8a7f7a', fontSize: '12.5px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+              予定はありません
+            </div>
+          ) : (
+            selectedDayEvents.map(ev => <EventCard key={ev.id} ev={ev} isPast={ev.event_date < todayStr} />)
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   const filteredUpcoming = applyFilter(upcomingEvents)
   const filteredPast = applyFilter(pastEvents)
   const upG = { u40: filteredUpcoming.filter(e => e.category === 'u40'), o40: filteredUpcoming.filter(e => e.category === 'o40'), joint: filteredUpcoming.filter(e => e.category === 'joint') }
@@ -277,12 +405,14 @@ export default function Schedule() {
     <div style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '2px', color: '#2a2220', marginBottom: '20px' }}>スケジュール・出欠</div>
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {[['all','全体'],['u40','U-40'],['o40','O-40'],['joint','合同']].map(([v,l]) => (
+        {[['all','全体'],['calendar','カレンダー'],['u40','U-40'],['o40','O-40'],['joint','合同']].map(([v,l]) => (
           <div key={v} style={tabStyle(v)} onClick={() => setFilter(v)}>{l}</div>
         ))}
       </div>
 
-      {loading ? <div style={{ color: '#8a7f7a', fontSize: '13px' }}>読み込み中...</div> : (
+      {loading ? <div style={{ color: '#8a7f7a', fontSize: '13px' }}>読み込み中...</div> : filter === 'calendar' ? (
+        <CalendarView />
+      ) : (
         <>
           {filteredUpcoming.length === 0 ? (
             <div style={{ background: 'white', borderRadius: '10px', padding: '24px', textAlign: 'center', color: '#8a7f7a', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: '16px' }}>
