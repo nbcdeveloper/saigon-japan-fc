@@ -82,7 +82,10 @@ export default function Members() {
                             <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#2a2220', color: '#e8c84a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', flexShrink: 0, fontFamily: "'Bebas Neue', sans-serif" }}>
                               {m.name?.slice(0, 1)}
                             </div>
-                            {m.name}
+                            <div>
+                              <div>{m.name}</div>
+                              {m.name_romaji && <div style={{ fontSize: '10px', color: '#8a7f7a', fontWeight: '400' }}>{m.name_romaji}</div>}
+                            </div>
                           </div>
                         </td>
                         <td style={{ padding: '9px 12px' }}>
@@ -129,8 +132,9 @@ export default function Members() {
                       {m.name?.slice(0, 1)}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: '700', fontSize: '15px', marginBottom: '4px' }}>{m.name}</div>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <div style={{ fontWeight: '700', fontSize: '15px' }}>{m.name}</div>
+                      {m.name_romaji && <div style={{ fontSize: '10.5px', color: '#8a7f7a', marginBottom: '4px' }}>{m.name_romaji}</div>}
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: m.name_romaji ? 0 : '4px' }}>
                         <span style={{ background: t.bg, color: t.color, fontSize: '10.5px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px' }}>{t.label}</span>
                         <span style={{ background: '#e8e0d8', color: '#2a2220', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>{m.position1}</span>
                         {m.position2 && <span style={{ background: '#e8e0d8', color: '#2a2220', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>{m.position2}</span>}

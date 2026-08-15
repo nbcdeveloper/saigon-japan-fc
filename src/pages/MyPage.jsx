@@ -13,7 +13,7 @@ const labelStyle = {
 export default function MyPage() {
   const [profile, setProfile] = useState(null)
   const [form, setForm] = useState({
-    name: '', position1: 'MF', position2: '', birth_year: '', birth_month: '', birth_day: '', joined_at: ''
+    name: '', name_romaji: '', position1: 'MF', position2: '', birth_year: '', birth_month: '', birth_day: '', joined_at: ''
   })
   const [pwForm, setPwForm] = useState({ password: '', confirm: '' })
   const [loading, setLoading] = useState(true)
@@ -32,6 +32,7 @@ export default function MyPage() {
       setProfile(data)
       setForm({
         name: data.name || '',
+        name_romaji: data.name_romaji || '',
         position1: data.position1 || 'MF',
         position2: data.position2 || '',
         birth_year: data.birth_year || '',
@@ -49,6 +50,7 @@ export default function MyPage() {
     const { data: { user } } = await supabase.auth.getUser()
     const { error } = await supabase.from('profiles').update({
       name: form.name,
+      name_romaji: form.name_romaji || null,
       position1: form.position1,
       position2: form.position2 || null,
       birth_year: form.birth_year ? parseInt(form.birth_year) : null,
@@ -97,6 +99,7 @@ export default function MyPage() {
           </div>
           <div>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', color: 'white', letterSpacing: '1px' }}>{profile.name || '未設定'}</div>
+            {profile.name_romaji && <div style={{ fontSize: '11.5px', color: '#c9beb5', marginTop: '2px' }}>{profile.name_romaji}</div>}
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
               {profile.team && teamLabel(profile.team)}
               {profile.jersey_home && <span style={{ background: '#f0f0f0', color: '#555', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>Home #{profile.jersey_home}</span>}
@@ -116,6 +119,10 @@ export default function MyPage() {
           <div style={{ gridColumn: '1/-1' }}>
             <label style={labelStyle}>氏名 *</label>
             <input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="例：田中 健太" />
+          </div>
+          <div style={{ gridColumn: '1/-1' }}>
+            <label style={labelStyle}>ローマ字氏名</label>
+            <input style={inputStyle} value={form.name_romaji} onChange={e => setForm({ ...form, name_romaji: e.target.value })} placeholder="例：TANAKA Kenta" />
           </div>
           <div>
             <label style={labelStyle}>ポジション１</label>

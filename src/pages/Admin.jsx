@@ -46,7 +46,7 @@ export default function Admin() {
   const [memberModal, setMemberModal] = useState(false)
   const [editMember, setEditMember] = useState(null)
   const [memberForm, setMemberForm] = useState({
-    name: '', team: 'u40', position1: 'MF', position2: '',
+    name: '', name_romaji: '', team: 'u40', position1: 'MF', position2: '',
     birth_year: '', birth_month: '', birth_day: '', joined_at: '', status: 'active', dues_type: 'monthly',
     jersey_home: '', jersey_away: '', email: '', password: ''
   })
@@ -175,20 +175,20 @@ export default function Admin() {
   // Member CRUD
   const openAddMember = () => {
     setEditMember(null)
-    setMemberForm({ name: '', team: 'u40', position1: 'MF', position2: '', birth_year: '', birth_month: '', birth_day: '', joined_at: '', status: 'active', dues_type: 'monthly', jersey_home: '', jersey_away: '', email: '', password: '' })
+    setMemberForm({ name: '', name_romaji: '', team: 'u40', position1: 'MF', position2: '', birth_year: '', birth_month: '', birth_day: '', joined_at: '', status: 'active', dues_type: 'monthly', jersey_home: '', jersey_away: '', email: '', password: '' })
     setMemberModal(true)
   }
 
   const openEditMember = (m) => {
     setEditMember(m)
-    setMemberForm({ name: m.name || '', team: m.team || 'u40', position1: m.position1 || 'MF', position2: m.position2 || '', birth_year: m.birth_year || '', birth_month: m.birth_month || '', birth_day: m.birth_day || '', joined_at: m.joined_at || '', status: m.status || 'active', dues_type: m.dues_type || 'monthly', jersey_home: m.jersey_home || '', jersey_away: m.jersey_away || '', email: '', password: '' })
+    setMemberForm({ name: m.name || '', name_romaji: m.name_romaji || '', team: m.team || 'u40', position1: m.position1 || 'MF', position2: m.position2 || '', birth_year: m.birth_year || '', birth_month: m.birth_month || '', birth_day: m.birth_day || '', joined_at: m.joined_at || '', status: m.status || 'active', dues_type: m.dues_type || 'monthly', jersey_home: m.jersey_home || '', jersey_away: m.jersey_away || '', email: '', password: '' })
     setMemberModal(true)
   }
 
   const saveMember = async () => {
     if (!memberForm.name) return alert('氏名は必須です')
     const profileData = {
-      name: memberForm.name, team: memberForm.team, position1: memberForm.position1,
+      name: memberForm.name, name_romaji: memberForm.name_romaji || null, team: memberForm.team, position1: memberForm.position1,
       position2: memberForm.position2 || null,
       birth_year: memberForm.birth_year ? parseInt(memberForm.birth_year) : null,
       birth_month: memberForm.birth_month ? parseInt(memberForm.birth_month) : null,
@@ -723,6 +723,7 @@ export default function Admin() {
             <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>{editMember ? '✏️ メンバー編集' : '👥 メンバー追加'}</div>
             <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
               <div><label style={labelStyle}>氏名 *</label><input style={inputStyle} value={memberForm.name} onChange={e => setMemberForm({ ...memberForm, name: e.target.value })} placeholder="例：田中 健太" /></div>
+              <div><label style={labelStyle}>ローマ字氏名</label><input style={inputStyle} value={memberForm.name_romaji} onChange={e => setMemberForm({ ...memberForm, name_romaji: e.target.value })} placeholder="例：TANAKA Kenta" /></div>
               <div><label style={labelStyle}>メインチーム</label><select style={inputStyle} value={memberForm.team} onChange={e => setMemberForm({ ...memberForm, team: e.target.value })}><option value="u40">U-40</option><option value="o40">O-40</option></select></div>
               <div><label style={labelStyle}>ポジション１</label><select style={inputStyle} value={memberForm.position1} onChange={e => setMemberForm({ ...memberForm, position1: e.target.value })}>{['GK','DF','MF','FW'].map(p => <option key={p}>{p}</option>)}</select></div>
               <div><label style={labelStyle}>ポジション２（任意）</label><select style={inputStyle} value={memberForm.position2} onChange={e => setMemberForm({ ...memberForm, position2: e.target.value })}><option value="">－</option>{['GK','DF','MF','FW'].map(p => <option key={p}>{p}</option>)}</select></div>
