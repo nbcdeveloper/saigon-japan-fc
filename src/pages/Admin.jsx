@@ -80,6 +80,13 @@ export default function Admin() {
   // Master
   const [newMasterValue, setNewMasterValue] = useState({ event_type: '', venue: '', meetup_place: '' })
 
+  // Org chart（体制図）
+  const [orgChart, setOrgChart] = useState([])
+  const [orgModal, setOrgModal] = useState(false)
+  const [editOrg, setEditOrg] = useState(null)
+  const [orgForm, setOrgForm] = useState({ section: 'club', role_title: '', names: '', member_ids: [], sort_order: 0 })
+  const [orgMemberSearch, setOrgMemberSearch] = useState('')
+
   useEffect(() => { checkAdmin() }, [])
 
   const checkAdmin = async () => {
@@ -93,6 +100,7 @@ export default function Admin() {
       fetchMatches()
       fetchSponsors()
       fetchMasters()
+      fetchOrgChart()
     }
     setLoading(false)
   }
@@ -144,6 +152,54 @@ export default function Admin() {
     if (!window.confirm('削除しますか？')) return
     await supabase.from('sponsors').delete().eq('id', id)
     fetchSponsors()
+  }
+
+  const fetchOrgChart = async () => {
+    const { data } = await supabase.from('org_chart').select('*').order('section').order('sort_order')
+    if (data) setOrgChart(data)
+  }
+
+  const openAddOrg = (section) => {
+    setEditOrg(null)
+    const sectionRows = orgChart.filter(o => o.section === (section || 'club'))
+    const maxOrder = sectionRows.length > 0 ? Math.max(...sectionRows.map(o => o.sort_order || 0)) : 0
+    setOrgForm({ section: section || 'club', role_title: '', names: '', member_ids: [], sort_order: maxOrder + 1 })
+    setOrgMemberSearch('')
+    setOrgModal(true)
+  }
+
+  const openEditOrg = (o) => {
+    setEditOrg(o)
+    setOrgForm({ section: o.section, role_title: o.role_title, names: o.names || '', member_ids: o.member_ids || [], sort_order: o.sort_order || 0 })
+    setOrgMemberSearch('')
+    setOrgModal(true)
+  }
+
+  const toggleOrgMember = (memberId) => {
+    setOrgForm(prev => ({
+      ...prev,
+      member_ids: prev.member_ids.includes(memberId)
+        ? prev.member_ids.filter(id => id !== memberId)
+        : [...prev.member_ids, memberId]
+    }))
+  }
+
+  const saveOrg = async () => {
+    if (!orgForm.role_title) return alert('役職名は必須です')
+    const payload = { ...orgForm, updated_at: new Date().toISOString() }
+    if (editOrg) {
+      await supabase.from('org_chart').update(payload).eq('id', editOrg.id)
+    } else {
+      await supabase.from('org_chart').insert(payload)
+    }
+    setOrgModal(false)
+    fetchOrgChart()
+  }
+
+  const deleteOrg = async (id) => {
+    if (!window.confirm('削除しますか？')) return
+    await supabase.from('org_chart').delete().eq('id', id)
+    fetchOrgChart()
   }
 
   const fetchMasters = async () => {
@@ -341,6 +397,7 @@ export default function Admin() {
     ['payments', '💴 部費'],
     ['jersey', '👕 背番号'],
     ['sponsors', '🤝 協賛'],
+    ['orgchart', '🧑‍🤝‍🧑 体制図'],
     ['master', '⚙️ マスタ'],
   ]
 
@@ -700,6 +757,92 @@ export default function Admin() {
                 <div style={{ display: 'flex', gap: '9px', justifyContent: 'flex-end' }}>
                   <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd' })} onClick={() => setSponsorModal(false)}>キャンセル</button>
                   <button style={btn('#e8c84a', '#2a2220')} onClick={saveSponsor}>{editSponsor ? '保存する' : '追加する'}</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 体制図 */}
+      {tab === 'orgchart' && (
+        <div>
+          {[['club', '🏛️ 本部'], ['u40', '🟣 U-40'], ['o40', '🔵 O-40']].map(([sectionKey, sectionLabel]) => (
+            <div key={sectionKey} style={{ marginBottom: '22px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '1px', color: '#2a2220' }}>{sectionLabel}</div>
+                <button style={btn('#2a2220', '#e8c84a', { padding: '4px 10px', fontSize: '11.5px' })} onClick={() => openAddOrg(sectionKey)}>＋ 役職追加</button>
+              </div>
+              {orgChart.filter(o => o.section === sectionKey).length === 0 && (
+                <div style={{ color: '#8a7f7a', fontSize: '13px' }}>役職の登録がありません</div>
+              )}
+              {orgChart.filter(o => o.section === sectionKey).map(o => {
+                const memberNames = (o.member_ids || []).map(id => members.find(m => m.id === id)?.name).filter(Boolean)
+                const extraNames = o.names ? o.names.split(/[、,]/).map(s => s.trim()).filter(Boolean) : []
+                const allNames = [...memberNames, ...extraNames]
+                return (
+                  <div key={o.id} style={{ background: 'white', borderRadius: '8px', padding: '10px 16px', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', minWidth: 0 }}>
+                      <span style={{ fontWeight: '700', fontSize: '13px', flexShrink: 0 }}>{o.role_title}</span>
+                      <span style={{ fontSize: '13px', color: '#555' }}>{allNames.length > 0 ? allNames.join('、') : '（未定）'}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                      <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '4px 9px', fontSize: '11.5px' })} onClick={() => openEditOrg(o)}>編集</button>
+                      <button style={btn('#e74c3c', 'white', { padding: '4px 9px', fontSize: '11.5px' })} onClick={() => deleteOrg(o.id)}>削除</button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+
+          {/* 体制図モーダル */}
+          {orgModal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }} onClick={() => setOrgModal(false)}>
+              <div style={{ background: 'white', borderRadius: '12px', padding: '26px', width: '440px', maxWidth: '92vw', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '19px', letterSpacing: '1px', marginBottom: '16px' }}>
+                  {editOrg ? '✏️ 役職編集' : '🧑‍🤝‍🧑 役職追加'}
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={labelStyle}>区分</label>
+                  <select style={inputStyle} value={orgForm.section} onChange={e => setOrgForm({ ...orgForm, section: e.target.value })}>
+                    <option value="club">本部</option>
+                    <option value="u40">U-40</option>
+                    <option value="o40">O-40</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={labelStyle}>役職名 *</label>
+                  <input style={inputStyle} value={orgForm.role_title} onChange={e => setOrgForm({ ...orgForm, role_title: e.target.value })} placeholder="例：キャプテン" />
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={labelStyle}>選手から選択（複数選択可）</label>
+                  <input style={{ ...inputStyle, marginBottom: '6px' }} value={orgMemberSearch} onChange={e => setOrgMemberSearch(e.target.value)} placeholder="名前で検索" />
+                  <div style={{ border: '1.5px solid #e0dbd5', borderRadius: '6px', maxHeight: '190px', overflowY: 'auto', padding: '4px 10px' }}>
+                    {members
+                      .filter(m => !orgMemberSearch || m.name?.includes(orgMemberSearch))
+                      .sort((a, b) => (a.team || '').localeCompare(b.team || '') || (a.name || '').localeCompare(b.name || ''))
+                      .map(m => (
+                        <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', fontSize: '12.5px', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={orgForm.member_ids.includes(m.id)} onChange={() => toggleOrgMember(m.id)} />
+                          <span>{m.name}</span>
+                          <span style={{ fontSize: '10px', fontWeight: '700', color: m.team === 'u40' ? '#7b5ea7' : '#2a5fa5' }}>{m.team === 'u40' ? 'U-40' : 'O-40'}</span>
+                        </label>
+                      ))}
+                    {members.length === 0 && <div style={{ color: '#8a7f7a', fontSize: '12px', padding: '6px 0' }}>メンバーがいません</div>}
+                  </div>
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={labelStyle}>登録外の方（任意・自由入力、「、」区切り）</label>
+                  <input style={inputStyle} value={orgForm.names} onChange={e => setOrgForm({ ...orgForm, names: e.target.value })} placeholder="アプリに未登録の方がいる場合のみ入力" />
+                </div>
+                <div style={{ marginBottom: '18px' }}>
+                  <label style={labelStyle}>表示順</label>
+                  <input style={inputStyle} type="number" value={orgForm.sort_order} onChange={e => setOrgForm({ ...orgForm, sort_order: parseInt(e.target.value) || 0 })} />
+                </div>
+                <div style={{ display: 'flex', gap: '9px', justifyContent: 'flex-end' }}>
+                  <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd' })} onClick={() => setOrgModal(false)}>キャンセル</button>
+                  <button style={btn('#e8c84a', '#2a2220')} onClick={saveOrg}>{editOrg ? '保存する' : '追加する'}</button>
                 </div>
               </div>
             </div>

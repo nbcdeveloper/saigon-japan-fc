@@ -10,6 +10,7 @@ const navItems = [
   { path: '/attendance', icon: '📊', label: '出席率' },
   { path: '/announcements', icon: '📢', label: '掲示板' },
   { path: '/sponsors', icon: '🤝', label: '協賛' },
+  { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
   { path: '/rules', icon: '📜', label: '規律と方針' },
   { path: '/admin', icon: '⚙️', label: '管理者設定' },
 ]
@@ -128,6 +129,7 @@ export default function Layout({ session }) {
               { path: '/attendance', icon: '📊', label: '出席率' },
               { path: '/announcements', icon: '📢', label: '掲示板' },
               { path: '/sponsors', icon: '🤝', label: '協賛' },
+              { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
               { path: '/rules', icon: '📜', label: '規律と方針' },
               { path: '/mypage', icon: '👤', label: 'マイページ' },
               { path: '/admin', icon: '⚙️', label: '管理者設定' },

@@ -9,6 +9,7 @@ import Attendance from './pages/Attendance'
 import Members from './pages/Members'
 import Announcements from './pages/Announcements'
 import Sponsors from './pages/Sponsors'
+import OrgChart from './pages/OrgChart'
 import Rules from './pages/Rules'
 import MyPage from './pages/MyPage'
 import Admin from './pages/Admin'
@@ -50,6 +51,7 @@ function App() {
           <Route path="members" element={<Members />} />
           <Route path="announcements" element={<Announcements />} />
           <Route path="sponsors" element={<Sponsors />} />
+          <Route path="orgchart" element={<OrgChart />} />
           <Route path="rules" element={<Rules />} />
           <Route path="mypage" element={<MyPage />} />
           <Route path="admin" element={<Admin />} />
