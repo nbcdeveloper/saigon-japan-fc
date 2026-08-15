@@ -224,7 +224,9 @@ export default function Schedule() {
             {/* カウント行 */}
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '6px', alignItems: 'center' }}>
               {[
-                { key: 'present', label: '✅ 出席', color: '#27ae60', count: (counts.present || 0) + (counts.late || 0) + (counts.early_leave || 0) },
+                { key: 'present', label: '✅ 出席', color: '#27ae60', count: counts.present || 0 },
+                { key: 'late', label: '⏰ 遅刻', color: '#e67e22', count: counts.late || 0 },
+                { key: 'early_leave', label: '🚪 早退', color: '#16a085', count: counts.early_leave || 0 },
                 { key: 'absent', label: '❌ 欠席', color: '#e74c3c', count: counts.absent || 0 },
                 { key: 'undecided', label: '❓ 未定', color: '#f39c12', count: counts.undecided || 0 },
                 { key: 'noanswer', label: '📝 未回答', color: '#8a7f7a', count: noAnswerCount > 0 ? noAnswerCount : 0 },
@@ -243,7 +245,9 @@ export default function Schedule() {
             {isExpanded && (
               <div style={{ background: '#f8f5f0', borderRadius: '8px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[
-                  { key: 'present', label: '✅ 出席', color: '#27ae60', list: [...(names.present || []), ...(names.late || []), ...(names.early_leave || [])] },
+                  { key: 'present', label: '✅ 出席', color: '#27ae60', list: names.present || [] },
+                  { key: 'late', label: '⏰ 遅刻', color: '#e67e22', list: names.late || [] },
+                  { key: 'early_leave', label: '🚪 早退', color: '#16a085', list: names.early_leave || [] },
                   { key: 'absent', label: '❌ 欠席', color: '#e74c3c', list: names.absent || [] },
                   { key: 'undecided', label: '❓ 未定', color: '#f39c12', list: names.undecided || [] },
                 ].map(({ key, label, color, list }) => list.length > 0 && (
