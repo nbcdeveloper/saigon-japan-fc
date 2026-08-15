@@ -137,15 +137,13 @@ export default function MyPage() {
               {['GK','DF','MF','FW'].map(p => <option key={p}>{p}</option>)}
             </select>
           </div>
-          <div>
-            <label style={labelStyle}>生年</label>
-            <input style={inputStyle} type="number" value={form.birth_year} onChange={e => setForm({ ...form, birth_year: e.target.value })} placeholder="例：1990" />
-          </div>
-          <div>
-            <label style={labelStyle}>入部年月</label>
-            <input style={inputStyle} type="month" value={form.joined_at} onChange={e => setForm({ ...form, joined_at: e.target.value })} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+          <div style={{ gridColumn: '1/-1', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+            <div><label style={labelStyle}>生年</label>
+              <select style={inputStyle} value={form.birth_year} onChange={e => setForm({ ...form, birth_year: e.target.value })}>
+                <option value="">－</option>
+                {Array.from({length:90},(_,i)=>new Date().getFullYear()-i).map(y=><option key={y} value={y}>{y}年</option>)}
+              </select>
+            </div>
             <div><label style={labelStyle}>誕生月</label>
               <select style={inputStyle} value={form.birth_month} onChange={e => setForm({ ...form, birth_month: e.target.value })}>
                 <option value="">－</option>
@@ -158,6 +156,10 @@ export default function MyPage() {
                 {Array.from({length:31},(_,i)=><option key={i+1} value={i+1}>{i+1}日</option>)}
               </select>
             </div>
+          </div>
+          <div>
+            <label style={labelStyle}>入部年月</label>
+            <input style={inputStyle} type="month" value={form.joined_at} onChange={e => setForm({ ...form, joined_at: e.target.value })} />
           </div>
         </div>
         {message && <div style={{ fontSize: '13px', marginBottom: '12px', color: message.includes('✅') ? '#27ae60' : '#e74c3c' }}>{message}</div>}
