@@ -349,7 +349,7 @@ export default function Schedule() {
                     const dayEvents = eventsOnDay(day)
                     return (
                       <div key={di} onClick={() => day && setSelectedDate(dStr)} style={{
-                        minHeight: '46px', borderRadius: '6px', padding: '3px',
+                        minHeight: '52px', borderRadius: '6px', padding: '3px',
                         background: !day ? 'transparent' : isSelected ? '#2a2220' : isToday ? '#fef6e0' : '#fafafa',
                         border: isToday && !isSelected ? '1.5px solid #e8c84a' : '1px solid #f0ebe5',
                         cursor: day ? 'pointer' : 'default',
@@ -365,8 +365,19 @@ export default function Schedule() {
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
                                 {dayEvents.slice(0, 4).map(ev => {
                                   const cat = catInfo(ev.category)
-                                  return <span key={ev.id} style={{ width: '6px', height: '6px', borderRadius: '50%', background: isSelected ? '#e8c84a' : cat.color, display: 'inline-block' }} />
+                                  return (
+                                    <span key={ev.id} title={ev.title} style={{
+                                      width: '15px', height: '15px', borderRadius: '50%',
+                                      background: isSelected ? '#3a322c' : cat.bg,
+                                      border: `1.5px solid ${isSelected ? '#e8c84a' : cat.color}`,
+                                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                      fontSize: '9px', lineHeight: 1, flexShrink: 0,
+                                    }}>⚽</span>
+                                  )
                                 })}
+                                {dayEvents.length > 4 && (
+                                  <span style={{ fontSize: '9px', color: isSelected ? '#e8c84a' : '#8a7f7a', alignSelf: 'center' }}>+{dayEvents.length - 4}</span>
+                                )}
                               </div>
                             )}
                           </>
