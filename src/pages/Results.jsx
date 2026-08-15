@@ -47,6 +47,16 @@ export default function Results() {
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5)
   }
 
+  const assists = (team) => {
+    const teamMatchIds = matches.filter(m => m.team === team).map(m => m.id)
+    const map = {}
+    goals.filter(g => teamMatchIds.includes(g.match_id) && g.assist_member_id).forEach(g => {
+      const member = members.find(m => m.id === g.assist_member_id)
+      if (member) map[member.name] = (map[member.name] || 0) + 1
+    })
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5)
+  }
+
   const resultTag = (m) => {
     if (m.score_us > m.score_them) return <span style={{ background: '#d4f4e0', color: '#1a7a40', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>WIN</span>
     if (m.score_us === m.score_them) return <span style={{ background: '#e8eaf6', color: '#3949ab', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>DRAW</span>
@@ -92,7 +102,9 @@ export default function Results() {
           const matchGoals = goals.filter(g => g.match_id === m.id)
           const scorerNames = matchGoals.map(g => {
             const member = members.find(mem => mem.id === g.member_id)
-            return member ? `${member.name}${g.minute ? `(${g.minute}')` : ''}` : ''
+            if (!member) return ''
+            const assistMember = g.assist_member_id ? members.find(mem => mem.id === g.assist_member_id) : null
+            return `${member.name}${g.minute ? `(${g.minute}')` : ''}${assistMember ? ` [A: ${assistMember.name}]` : ''}`
           }).filter(Boolean)
           return (
             <div key={m.id} style={{ background: 'white', borderRadius: '10px', padding: '16px 20px', marginBottom: '10px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
@@ -151,6 +163,40 @@ export default function Results() {
     )
   }
 
+  const AssistRanking = ({ team }) => {
+    const list = assists(team)
+    const color = team === 'u40' ? '#7b5ea7' : '#2a5fa5'
+    const medals = ['🥇', '🥈', '🥉']
+    return (
+      <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1px', color: '#2a2220', marginBottom: '12px' }}>
+          <span style={{ color }}>■</span> {team === 'u40' ? 'U-40' : 'O-40'} アシストランキング
+        </div>
+        {list.length === 0 ? <div style={{ color: '#8a7f7a', fontSize: '12px' }}>アシスト記録がありません</div> : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead><tr>{['順位', '選手', 'アシスト'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
+            <tbody>
+              {list.map(([name, count], i) => (
+                <tr key={name} style={{ borderBottom: '1px solid #f0ebe5' }}>
+                  <td style={{ padding: '8px 12px' }}>{medals[i] || `${i + 1}`}</td>
+                  <td style={{ padding: '8px 12px', fontWeight: '500' }}>{name}</td>
+                  <td style={{ padding: '8px 12px', fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px' }}>{count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    )
+  }
+
+  const RankingSection = ({ team }) => (
+    <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '18px' }}>
+      <ScorerRanking team={team} />
+      <AssistRanking team={team} />
+    </div>
+  )
+
   return (
     <div style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '2px', color: '#2a2220', marginBottom: '20px' }}>試合結果</div>
@@ -177,10 +223,8 @@ export default function Results() {
               <MatchList team="o40" />
             </div>
           )}
-          <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
-            <ScorerRanking team="u40" />
-            <ScorerRanking team="o40" />
-          </div>
+          {(filter === 'all' || filter === 'u40') && <RankingSection team="u40" />}
+          {(filter === 'all' || filter === 'o40') && <RankingSection team="o40" />}
         </>
       )}
     </div>

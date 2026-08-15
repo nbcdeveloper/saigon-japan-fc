@@ -66,7 +66,7 @@ export default function Admin() {
     team: 'u40', opponent: '', match_date: '', venue: '',
     home_away: 'home', match_type: '公式戦', score_us: 0, score_them: 0, notes: ''
   })
-  const [scorerInputs, setScorerInputs] = useState([{ member_id: '', minute: '' }])
+  const [scorerInputs, setScorerInputs] = useState([{ member_id: '', minute: '', assist_member_id: '' }])
 
   // Sponsors
   const [sponsors, setSponsors] = useState([])
@@ -246,7 +246,7 @@ export default function Admin() {
   const openAddMatch = () => {
     setEditMatch(null)
     setMatchForm({ event_id: '', team: 'u40', opponent: '', match_date: '', venue: '', home_away: 'home', match_type: '公式戦', score_us: 0, score_them: 0, notes: '' })
-    setScorerInputs([{ member_id: '', minute: '' }])
+    setScorerInputs([{ member_id: '', minute: '', assist_member_id: '' }])
     setMatchModal(true)
   }
 
@@ -254,7 +254,7 @@ export default function Admin() {
     setEditMatch(m)
     setMatchForm({ event_id: m.event_id || '', team: m.team, opponent: m.opponent, match_date: m.match_date, venue: m.venue || '', home_away: m.home_away, match_type: m.match_type, score_us: m.score_us, score_them: m.score_them, notes: m.notes || '' })
     const { data: g } = await supabase.from('goals').select('*').eq('match_id', m.id)
-    setScorerInputs(g && g.length > 0 ? g.map(goal => ({ member_id: goal.member_id, minute: goal.minute || '' })) : [{ member_id: '', minute: '' }])
+    setScorerInputs(g && g.length > 0 ? g.map(goal => ({ member_id: goal.member_id, minute: goal.minute || '', assist_member_id: goal.assist_member_id || '' })) : [{ member_id: '', minute: '', assist_member_id: '' }])
     setMatchModal(true)
   }
 
@@ -298,7 +298,7 @@ export default function Admin() {
       const { data } = await supabase.from('matches').insert({ ...payload, created_by: user.id }).select().single()
       matchId = data.id
     }
-    const validGoals = scorerInputs.filter(s => s.member_id).map(s => ({ match_id: matchId, member_id: s.member_id, minute: s.minute ? parseInt(s.minute) : null }))
+    const validGoals = scorerInputs.filter(s => s.member_id).map(s => ({ match_id: matchId, member_id: s.member_id, minute: s.minute ? parseInt(s.minute) : null, assist_member_id: s.assist_member_id || null }))
     if (validGoals.length > 0) await supabase.from('goals').insert(validGoals)
     setMatchModal(false)
     setEditMatch(null)
@@ -312,7 +312,7 @@ export default function Admin() {
     fetchMatches()
   }
 
-  const addScorer = () => setScorerInputs([...scorerInputs, { member_id: '', minute: '' }])
+  const addScorer = () => setScorerInputs([...scorerInputs, { member_id: '', minute: '', assist_member_id: '' }])
   const removeScorer = (i) => setScorerInputs(scorerInputs.filter((_, idx) => idx !== i))
   const updateScorer = (i, field, value) => setScorerInputs(scorerInputs.map((s, idx) => idx === i ? { ...s, [field]: value } : s))
 
@@ -849,13 +849,19 @@ export default function Admin() {
                 <button style={btn('#e8c84a', '#2a2220', { padding: '3px 10px', fontSize: '11px' })} onClick={addScorer}>＋ 追加</button>
               </div>
               {scorerInputs.map((s, i) => (
-                <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '6px', alignItems: 'center' }}>
-                  <select style={{ ...inputStyle, flex: 2 }} value={s.member_id} onChange={e => updateScorer(i, 'member_id', e.target.value)}>
-                    <option value="">選手を選択</option>
+                <div key={i} style={{ border: '1px solid #e0dbd5', borderRadius: '6px', padding: '8px', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+                    <select style={{ ...inputStyle, flex: 2 }} value={s.member_id} onChange={e => updateScorer(i, 'member_id', e.target.value)}>
+                      <option value="">選手を選択</option>
+                      {members.filter(m => m.team === matchForm.team).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </select>
+                    <input style={{ ...inputStyle, width: '70px', flex: 'none' }} type="number" value={s.minute} onChange={e => updateScorer(i, 'minute', e.target.value)} placeholder="分" />
+                    <button style={btn('#e74c3c', 'white', { padding: '4px 8px', fontSize: '11px', flex: 'none' })} onClick={() => removeScorer(i)}>✕</button>
+                  </div>
+                  <select style={inputStyle} value={s.assist_member_id} onChange={e => updateScorer(i, 'assist_member_id', e.target.value)}>
+                    <option value="">🎯 アシストなし</option>
                     {members.filter(m => m.team === matchForm.team).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
-                  <input style={{ ...inputStyle, width: '70px', flex: 'none' }} type="number" value={s.minute} onChange={e => updateScorer(i, 'minute', e.target.value)} placeholder="分" />
-                  <button style={btn('#e74c3c', 'white', { padding: '4px 8px', fontSize: '11px', flex: 'none' })} onClick={() => removeScorer(i)}>✕</button>
                 </div>
               ))}
             </div>
