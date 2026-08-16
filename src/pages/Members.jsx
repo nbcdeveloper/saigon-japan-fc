@@ -6,6 +6,7 @@ export default function Members() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState('default')
 
   useEffect(() => { fetchMembers() }, [])
 
@@ -19,6 +20,29 @@ export default function Members() {
     const matchTeam = filter === 'all' || m.team === filter
     const matchSearch = m.name?.includes(search) || m.position1?.includes(search)
     return matchTeam && matchSearch
+  })
+
+  // 並び替え: 標準（チーム→名前）／A-Z（ローマ字氏名優先、未入力は氏名で代用）／年齢順（生年が古い＝年上から）
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'az') {
+      const an = (a.name_romaji || a.name || '').toUpperCase()
+      const bn = (b.name_romaji || b.name || '').toUpperCase()
+      return an.localeCompare(bn)
+    }
+    if (sortBy === 'age') {
+      const aKey = a.birth_year ? a.birth_year * 10000 + (a.birth_month || 0) * 100 + (a.birth_day || 0) : 999999
+      const bKey = b.birth_year ? b.birth_year * 10000 + (b.birth_month || 0) * 100 + (b.birth_day || 0) : 999999
+      return aKey - bKey
+    }
+    return 0
+  })
+
+  const sortTabStyle = (val) => ({
+    padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '700',
+    cursor: 'pointer', border: '1.5px solid',
+    borderColor: sortBy === val ? '#e8c84a' : '#ccc',
+    background: sortBy === val ? '#2a2220' : 'transparent',
+    color: sortBy === val ? '#e8c84a' : '#8a7f7a',
   })
 
   const teamInfo = (team) => team === 'u40'
@@ -47,10 +71,17 @@ export default function Members() {
           style={{ border: 'none', outline: 'none', fontSize: '13px', width: '100%', fontFamily: 'inherit', background: 'transparent' }} />
       </div>
 
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
         <div style={tabStyle('all')} onClick={() => setFilter('all')}>全員</div>
         <div style={tabStyle('u40')} onClick={() => setFilter('u40')}>U-40</div>
         <div style={tabStyle('o40')} onClick={() => setFilter('o40')}>O-40</div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '11.5px', color: '#8a7f7a', marginRight: '2px' }}>並び替え:</span>
+        <div style={sortTabStyle('default')} onClick={() => setSortBy('default')}>標準</div>
+        <div style={sortTabStyle('az')} onClick={() => setSortBy('az')}>A-Z</div>
+        <div style={sortTabStyle('age')} onClick={() => setSortBy('age')}>年齢順（年上から）</div>
       </div>
 
       {loading ? (
@@ -73,7 +104,7 @@ export default function Members() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(m => {
+                  {sorted.map(m => {
                     const t = teamInfo(m.team)
                     return (
                       <tr key={m.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
@@ -123,7 +154,7 @@ export default function Members() {
 
           {/* モバイル: カード表示 */}
           <div className="show-mobile" style={{ display: 'none' }}>
-            {filtered.map(m => {
+            {sorted.map(m => {
               const t = teamInfo(m.team)
               return (
                 <div key={m.id} style={{ background: 'white', borderRadius: '10px', padding: '14px 16px', marginBottom: '10px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
