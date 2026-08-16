@@ -48,7 +48,7 @@ export default function Admin() {
   const [memberForm, setMemberForm] = useState({
     name: '', name_romaji: '', team: 'u40', position1: 'MF', position2: '',
     birth_year: '', birth_month: '', birth_day: '', joined_at: '', status: 'active', dues_type: 'monthly',
-    jersey_home: '', jersey_away: '', email: '', password: ''
+    jersey_home: '', jersey_away: '', email: '', password: '', dual_team: false
   })
 
   // Event modal
@@ -231,13 +231,13 @@ export default function Admin() {
   // Member CRUD
   const openAddMember = () => {
     setEditMember(null)
-    setMemberForm({ name: '', name_romaji: '', team: 'u40', position1: 'MF', position2: '', birth_year: '', birth_month: '', birth_day: '', joined_at: '', status: 'active', dues_type: 'monthly', jersey_home: '', jersey_away: '', email: '', password: '' })
+    setMemberForm({ name: '', name_romaji: '', team: 'u40', position1: 'MF', position2: '', birth_year: '', birth_month: '', birth_day: '', joined_at: '', status: 'active', dues_type: 'monthly', jersey_home: '', jersey_away: '', email: '', password: '', dual_team: false })
     setMemberModal(true)
   }
 
   const openEditMember = (m) => {
     setEditMember(m)
-    setMemberForm({ name: m.name || '', name_romaji: m.name_romaji || '', team: m.team || 'u40', position1: m.position1 || 'MF', position2: m.position2 || '', birth_year: m.birth_year || '', birth_month: m.birth_month || '', birth_day: m.birth_day || '', joined_at: m.joined_at || '', status: m.status || 'active', dues_type: m.dues_type || 'monthly', jersey_home: m.jersey_home || '', jersey_away: m.jersey_away || '', email: '', password: '' })
+    setMemberForm({ name: m.name || '', name_romaji: m.name_romaji || '', team: m.team || 'u40', position1: m.position1 || 'MF', position2: m.position2 || '', birth_year: m.birth_year || '', birth_month: m.birth_month || '', birth_day: m.birth_day || '', joined_at: m.joined_at || '', status: m.status || 'active', dues_type: m.dues_type || 'monthly', jersey_home: m.jersey_home || '', jersey_away: m.jersey_away || '', email: '', password: '', dual_team: m.dual_team || false })
     setMemberModal(true)
   }
 
@@ -252,6 +252,7 @@ export default function Admin() {
       joined_at: memberForm.joined_at || null, status: memberForm.status, dues_type: memberForm.dues_type,
       jersey_home: memberForm.jersey_home ? parseInt(memberForm.jersey_home) : null,
       jersey_away: memberForm.jersey_away ? parseInt(memberForm.jersey_away) : null,
+      dual_team: !!memberForm.dual_team,
     }
     if (editMember) {
       await supabase.from('profiles').update(profileData).eq('id', editMember.id)
@@ -371,6 +372,10 @@ export default function Admin() {
   const addScorer = () => setScorerInputs([...scorerInputs, { member_id: '', minute: '', assist_member_id: '' }])
   const removeScorer = (i) => setScorerInputs(scorerInputs.filter((_, idx) => idx !== i))
   const updateScorer = (i, field, value) => setScorerInputs(scorerInputs.map((s, idx) => idx === i ? { ...s, [field]: value } : s))
+  // 得点者・アシスト選手候補：メインチームが一致する選手 ＋ 兼務フラグが立っている選手（他チーム所属でも選択可）
+  const scorerCandidates = (team) => members
+    .filter(m => m.team === team || m.dual_team)
+    .sort((a, b) => (a.team === team ? 0 : 1) - (b.team === team ? 0 : 1))
 
   const teamBadge = (team) => (
     <span style={{ background: team === 'u40' ? '#ede8f7' : '#dceeff', color: team === 'u40' ? '#7b5ea7' : '#2a5fa5', fontSize: '10.5px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px' }}>
@@ -472,7 +477,10 @@ export default function Admin() {
                   {members.map(m => (
                     <tr key={m.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
                       <td style={{ padding: '9px 12px', fontWeight: '500', whiteSpace: 'nowrap' }}>{m.name}</td>
-                      <td style={{ padding: '9px 12px' }}>{teamBadge(m.team)}</td>
+                      <td style={{ padding: '9px 12px' }}>
+                        {teamBadge(m.team)}
+                        {m.dual_team && <span style={{ marginLeft: '4px', background: '#fff3cd', color: '#856404', fontSize: '10px', fontWeight: '700', padding: '1px 5px', borderRadius: '3px' }}>兼務</span>}
+                      </td>
                       <td style={{ padding: '9px 12px' }}>
                         <span style={{ background: '#e8e0d8', color: '#2a2220', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px', marginRight: '3px' }}>{m.position1}</span>
                         {m.position2 && <span style={{ background: '#e8e0d8', color: '#2a2220', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>{m.position2}</span>}
@@ -868,6 +876,10 @@ export default function Admin() {
               <div><label style={labelStyle}>氏名 *</label><input style={inputStyle} value={memberForm.name} onChange={e => setMemberForm({ ...memberForm, name: e.target.value })} placeholder="例：田中 健太" /></div>
               <div><label style={labelStyle}>ローマ字氏名</label><input style={inputStyle} value={memberForm.name_romaji} onChange={e => setMemberForm({ ...memberForm, name_romaji: e.target.value })} placeholder="例：TANAKA Kenta" /></div>
               <div><label style={labelStyle}>メインチーム</label><select style={inputStyle} value={memberForm.team} onChange={e => setMemberForm({ ...memberForm, team: e.target.value })}><option value="u40">U-40</option><option value="o40">O-40</option></select></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '18px' }}>
+                <input type="checkbox" id="dual_team_check" checked={!!memberForm.dual_team} onChange={e => setMemberForm({ ...memberForm, dual_team: e.target.checked })} />
+                <label htmlFor="dual_team_check" style={{ fontSize: '12.5px', color: '#2a2220', cursor: 'pointer' }}>U-40/O-40 兼務（両チームの試合で得点・アシスト選手として選択可）</label>
+              </div>
               <div><label style={labelStyle}>ポジション１</label><select style={inputStyle} value={memberForm.position1} onChange={e => setMemberForm({ ...memberForm, position1: e.target.value })}>{['GK','DF','MF','FW'].map(p => <option key={p}>{p}</option>)}</select></div>
               <div><label style={labelStyle}>ポジション２（任意）</label><select style={inputStyle} value={memberForm.position2} onChange={e => setMemberForm({ ...memberForm, position2: e.target.value })}><option value="">－</option>{['GK','DF','MF','FW'].map(p => <option key={p}>{p}</option>)}</select></div>
               <div><label style={labelStyle}>生年</label><input style={inputStyle} type="number" value={memberForm.birth_year} onChange={e => setMemberForm({ ...memberForm, birth_year: e.target.value })} placeholder="例：1990" /></div>
@@ -996,14 +1008,14 @@ export default function Admin() {
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
                     <select style={{ ...inputStyle, flex: 2 }} value={s.member_id} onChange={e => updateScorer(i, 'member_id', e.target.value)}>
                       <option value="">選手を選択</option>
-                      {members.filter(m => m.team === matchForm.team).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      {scorerCandidates(matchForm.team).map(m => <option key={m.id} value={m.id}>{m.name}{m.team !== matchForm.team ? '（兼務）' : ''}</option>)}
                     </select>
                     <input style={{ ...inputStyle, width: '70px', flex: 'none' }} type="number" value={s.minute} onChange={e => updateScorer(i, 'minute', e.target.value)} placeholder="分" />
                     <button style={btn('#e74c3c', 'white', { padding: '4px 8px', fontSize: '11px', flex: 'none' })} onClick={() => removeScorer(i)}>✕</button>
                   </div>
                   <select style={inputStyle} value={s.assist_member_id} onChange={e => updateScorer(i, 'assist_member_id', e.target.value)}>
                     <option value="">🎯 アシストなし</option>
-                    {members.filter(m => m.team === matchForm.team).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    {scorerCandidates(matchForm.team).map(m => <option key={m.id} value={m.id}>{m.name}{m.team !== matchForm.team ? '（兼務）' : ''}</option>)}
                   </select>
                 </div>
               ))}
