@@ -76,6 +76,8 @@ export default function Admin() {
     name: '', category: 'general', description: '', benefits: '',
     website_url: '', address: '', phone: '', logo_url: '', sort_order: 0, is_active: true
   })
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoUploadError, setLogoUploadError] = useState('')
 
   // Master
   const [newMasterValue, setNewMasterValue] = useState({ event_type: '', venue: '', meetup_place: '' })
@@ -152,6 +154,25 @@ export default function Admin() {
     if (!window.confirm('削除しますか？')) return
     await supabase.from('sponsors').delete().eq('id', id)
     fetchSponsors()
+  }
+
+  const uploadSponsorLogo = async (file) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setLogoUploadError('画像ファイルを選んでください'); return }
+    if (file.size > 3 * 1024 * 1024) { setLogoUploadError('3MB以下の画像にしてください'); return }
+    setLogoUploadError('')
+    setLogoUploading(true)
+    const ext = file.name.split('.').pop()
+    const path = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const { error } = await supabase.storage.from('sponsor-logos').upload(path, file, { upsert: true })
+    if (error) {
+      setLogoUploadError('アップロードに失敗しました：' + error.message)
+      setLogoUploading(false)
+      return
+    }
+    const { data } = supabase.storage.from('sponsor-logos').getPublicUrl(path)
+    setSponsorForm(f => ({ ...f, logo_url: data.publicUrl }))
+    setLogoUploading(false)
   }
 
   const fetchOrgChart = async () => {
@@ -754,8 +775,19 @@ export default function Admin() {
                     <input style={inputStyle} value={sponsorForm.website_url} onChange={e => setSponsorForm({ ...sponsorForm, website_url: e.target.value })} placeholder="https://..." />
                   </div>
                   <div style={{ gridColumn: '1/-1' }}>
-                    <label style={labelStyle}>ロゴ URL（任意）</label>
-                    <input style={inputStyle} value={sponsorForm.logo_url} onChange={e => setSponsorForm({ ...sponsorForm, logo_url: e.target.value })} placeholder="https://...（画像のURL）" />
+                    <label style={labelStyle}>ロゴ画像（任意）</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      {sponsorForm.logo_url && (
+                        <img src={sponsorForm.logo_url} alt="ロゴプレビュー" style={{ width: '56px', height: '56px', objectFit: 'contain', background: '#f5f2ee', borderRadius: '6px', border: '1px solid #e0dbd5' }} />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <input type="file" accept="image/*" onChange={e => uploadSponsorLogo(e.target.files?.[0])} disabled={logoUploading}
+                          style={{ fontSize: '12.5px', width: '100%' }} />
+                        {logoUploading && <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '4px' }}>アップロード中...</div>}
+                        {logoUploadError && <div style={{ fontSize: '11.5px', color: '#e74c3c', marginTop: '4px' }}>{logoUploadError}</div>}
+                      </div>
+                    </div>
+                    <input style={inputStyle} value={sponsorForm.logo_url} onChange={e => setSponsorForm({ ...sponsorForm, logo_url: e.target.value })} placeholder="画像を選ぶと自動入力されます（直接URLを貼ってもOK）" />
                   </div>
                   <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input type="checkbox" id="is_active" checked={sponsorForm.is_active} onChange={e => setSponsorForm({ ...sponsorForm, is_active: e.target.checked })} />
