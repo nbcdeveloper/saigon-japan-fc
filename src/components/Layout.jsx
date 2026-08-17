@@ -15,11 +15,19 @@ const navItems = [
   { path: '/admin', icon: '⚙️', label: '管理者設定' },
 ]
 
-const tabItems = [
+const tabItemsRow1 = [
   { path: '/', icon: '⚽', label: 'ホーム' },
   { path: '/schedule', icon: '📅', label: 'スケジュール' },
-  { path: '/results', icon: '🏆', label: '試合' },
+  { path: '/results', icon: '🏆', label: '試合結果' },
   { path: '/members', icon: '👥', label: 'メンバー' },
+  { path: '/mypage', icon: '👤', label: 'マイページ' },
+]
+
+const tabItemsRow2 = [
+  { path: '/announcements', icon: '📢', label: '掲示板' },
+  { path: '/attendance', icon: '📊', label: '出席率' },
+  { path: '/sponsors', icon: '🤝', label: '協賛' },
+  { path: '/admin', icon: '⚙️', label: '管理者画面' },
 ]
 
 export default function Layout({ session }) {
@@ -99,8 +107,20 @@ export default function Layout({ session }) {
         display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0,
         background: '#2a2220', borderTop: '1px solid rgba(255,255,255,0.1)', zIndex: 200
       }}>
+        <div style={{ display: 'flex', justifyContent: 'space-around', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          {tabItemsRow1.map(item => (
+            <button key={item.path} onClick={() => navigate(item.path)} style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              padding: '8px 2px 6px', background: 'none', border: 'none', cursor: 'pointer',
+              color: isActive(item.path) ? '#e8c84a' : 'rgba(245,242,238,0.5)',
+              fontSize: '9.5px', fontWeight: '600', gap: '3px', fontFamily: 'inherit'
+            }}>
+              <span style={{ fontSize: '20px' }}>{item.icon}</span>{item.label}
+            </button>
+          ))}
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-          {tabItems.map(item => (
+          {tabItemsRow2.map(item => (
             <button key={item.path} onClick={() => navigate(item.path)} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               padding: '8px 2px 6px', background: 'none', border: 'none', cursor: 'pointer',
@@ -123,16 +143,11 @@ export default function Layout({ session }) {
       {menuOpen && (
         <>
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 150 }} onClick={() => setMenuOpen(false)} />
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#2a2220', borderRadius: '16px 16px 0 0', zIndex: 160, padding: '16px 0 80px' }}>
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#2a2220', borderRadius: '16px 16px 0 0', zIndex: 160, padding: '16px 0 130px' }}>
             <div style={{ width: '36px', height: '4px', background: 'rgba(255,255,255,0.2)', borderRadius: '99px', margin: '0 auto 16px' }} />
             {[
-              { path: '/attendance', icon: '📊', label: '出席率' },
-              { path: '/announcements', icon: '📢', label: '掲示板' },
-              { path: '/sponsors', icon: '🤝', label: '協賛' },
-              { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
               { path: '/rules', icon: '📜', label: '規律と方針' },
-              { path: '/mypage', icon: '👤', label: 'マイページ' },
-              { path: '/admin', icon: '⚙️', label: '管理者設定' },
+              { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
             ].map(item => (
               <div key={item.path} onClick={() => { navigate(item.path); setMenuOpen(false) }}
                 style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 24px', color: 'rgba(245,242,238,0.7)', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>
@@ -147,7 +162,7 @@ export default function Layout({ session }) {
         * { box-sizing: border-box; }
         @media (max-width: 768px) {
           .sidebar { display: none !important; }
-          .main-content { margin-left: 0 !important; padding-bottom: 64px; }
+          .main-content { margin-left: 0 !important; padding-bottom: 116px; }
           .mobile-tabbar { display: block !important; }
         }
       `}</style>
