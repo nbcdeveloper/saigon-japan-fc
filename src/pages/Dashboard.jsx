@@ -28,13 +28,29 @@ export default function Dashboard() {
   const [topU40, setTopU40] = useState([])
   const [topO40, setTopO40] = useState([])
   const [birthdayMembers, setBirthdayMembers] = useState([])
+  const [matches, setMatches] = useState([])
 
   useEffect(() => {
     fetchStats()
     fetchEvents()
     fetchAnnouncements()
     fetchAttendance()
+    fetchMatches()
   }, [])
+
+  const fetchMatches = async () => {
+    const { data } = await supabase.from('matches').select('team, score_us, score_them')
+    if (data) setMatches(data)
+  }
+
+  const matchStats = (team) => {
+    const tm = team ? matches.filter(m => m.team === team) : matches
+    return {
+      w: tm.filter(m => m.score_us > m.score_them).length,
+      d: tm.filter(m => m.score_us === m.score_them).length,
+      l: tm.filter(m => m.score_us < m.score_them).length,
+    }
+  }
 
   const fetchStats = async () => {
     const { data } = await supabase.from('profiles').select('id, name, team, status, birth_month, birth_day').eq('status', 'active')
@@ -247,8 +263,29 @@ export default function Dashboard() {
 
         {/* 今期成績 */}
         <div style={statBox('#27ae60')}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '38px', lineHeight: 1 }}>－</div>
-          <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>今期成績</div>
+          {matches.length === 0 ? (
+            <>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '38px', lineHeight: 1 }}>－</div>
+              <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>今期成績</div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '38px', lineHeight: 1, color: '#2a2220' }}>
+                {matchStats().w}<span style={{ fontSize: '16px', marginLeft: '2px' }}>勝</span>
+              </div>
+              <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '2px', marginBottom: '8px' }}>
+                今期成績（{matchStats().w}勝{matchStats().d}分{matchStats().l}敗）
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ background: '#ede8f7', color: '#7b5ea7', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>
+                  U-40: {matchStats('u40').w}勝{matchStats('u40').d}分{matchStats('u40').l}敗
+                </span>
+                <span style={{ background: '#dceeff', color: '#2a5fa5', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>
+                  O-40: {matchStats('o40').w}勝{matchStats('o40').d}分{matchStats('o40').l}敗
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

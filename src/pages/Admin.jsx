@@ -417,8 +417,8 @@ export default function Admin() {
   }
 
   const TABS = [
-    ['members', '👥 メンバー'],
     ['schedule', '📅 スケジュール'],
+    ['members', '👥 メンバー'],
     ['matches', '🏆 試合結果'],
     ['payments', '💴 部費'],
     ['jersey', '👕 背番号'],
@@ -533,8 +533,9 @@ export default function Admin() {
       {/* スケジュール */}
       {tab === 'schedule' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
-            <button style={btn('#2a2220', '#e8c84a')} onClick={openAddEvent}>＋ イベント追加</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ fontSize: '13px', color: '#8a7f7a' }}>全{events.length}件</div>
+            <button style={btn('#2a2220', '#e8c84a', { padding: '13px 28px', fontSize: '15px', fontWeight: '700', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.18)' })} onClick={openAddEvent}>＋ イベントを追加</button>
           </div>
           <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
             <div style={{ overflowX: 'auto' }}>
