@@ -11,6 +11,7 @@ import Announcements from './pages/Announcements'
 import Sponsors from './pages/Sponsors'
 import OrgChart from './pages/OrgChart'
 import Rules from './pages/Rules'
+import SNS from './pages/SNS'
 import MyPage from './pages/MyPage'
 import Admin from './pages/Admin'
 import Layout from './components/Layout'
@@ -52,6 +53,7 @@ function App() {
           <Route path="announcements" element={<Announcements />} />
           <Route path="sponsors" element={<Sponsors />} />
           <Route path="orgchart" element={<OrgChart />} />
+          <Route path="sns" element={<SNS />} />
           <Route path="rules" element={<Rules />} />
           <Route path="mypage" element={<MyPage />} />
           <Route path="admin" element={<Admin />} />

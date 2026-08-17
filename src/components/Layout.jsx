@@ -11,6 +11,7 @@ const navItems = [
   { path: '/announcements', icon: '📢', label: '掲示板' },
   { path: '/sponsors', icon: '🤝', label: '協賛' },
   { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
+  { path: '/sns', icon: '📱', label: 'SNS' },
   { path: '/rules', icon: '📜', label: '規律と方針' },
   { path: '/admin', icon: '⚙️', label: '管理者設定' },
 ]
@@ -148,6 +149,7 @@ export default function Layout({ session }) {
             {[
               { path: '/rules', icon: '📜', label: '規律と方針' },
               { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
+              { path: '/sns', icon: '📱', label: 'SNS' },
             ].map(item => (
               <div key={item.path} onClick={() => { navigate(item.path); setMenuOpen(false) }}
                 style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 24px', color: 'rgba(245,242,238,0.7)', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>
