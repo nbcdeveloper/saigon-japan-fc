@@ -79,6 +79,18 @@ export default function Admin() {
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoUploadError, setLogoUploadError] = useState('')
 
+  // 会計（出納帳）
+  const [isTreasurer, setIsTreasurer] = useState(false)
+  const [isTreasurerAdmin, setIsTreasurerAdmin] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState(null)
+  const [wallets, setWallets] = useState([])
+  const [transactions, setTransactions] = useState([])
+  const todayStr = new Date().toISOString().split('T')[0]
+  const [txForm, setTxForm] = useState({ wallet_id: '', date: todayStr, type: 'income', category: '部費', customCategory: '', amount: '', memo: '' })
+  const [txWalletFilter, setTxWalletFilter] = useState('all')
+  const [editingHolderId, setEditingHolderId] = useState(null)
+  const [holderNameInput, setHolderNameInput] = useState('')
+
   // Master
   const [newMasterValue, setNewMasterValue] = useState({ event_type: '', venue: '', meetup_place: '' })
 
@@ -94,7 +106,8 @@ export default function Admin() {
   const checkAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
-    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    setCurrentUserId(user.id)
+    const { data } = await supabase.from('profiles').select('role, is_treasurer').eq('id', user.id).single()
     if (data?.role === 'admin') {
       setIsAdmin(true)
       fetchMembers()
@@ -104,6 +117,12 @@ export default function Admin() {
       fetchMasters()
       fetchOrgChart()
     }
+    if (data?.is_treasurer) {
+      setIsTreasurer(true)
+      fetchWallets()
+      fetchTransactions()
+    }
+    if (user.email === 'vespa9304@gmail.com') setIsTreasurerAdmin(true)
     setLoading(false)
   }
 
@@ -247,6 +266,73 @@ export default function Admin() {
     if (!window.confirm('削除しますか？')) return
     await supabase.from('masters').delete().eq('id', id)
     fetchMasters()
+  }
+
+  // 会計（出納帳）
+  const fetchWallets = async () => {
+    const { data } = await supabase.from('wallets').select('*').order('sort_order')
+    if (data) setWallets(data)
+  }
+
+  const fetchTransactions = async () => {
+    const { data } = await supabase.from('accounting_transactions').select('*').order('date', { ascending: false }).order('created_at', { ascending: false })
+    if (data) setTransactions(data)
+  }
+
+  const INCOME_CATEGORIES = ['部費', 'ユニフォーム代', 'その他（自由入力）']
+  const EXPENSE_CATEGORIES = ['グランド代', 'ストリーミング代', 'タクシー代', '雑費', 'その他（自由入力）']
+
+  const fmtVND = (n) => Math.round(n || 0).toLocaleString('ja-JP') + ' ₫'
+
+  const walletBalance = (walletId) => {
+    const w = wallets.find(w => w.id === walletId)
+    if (!w) return 0
+    const sum = transactions.filter(t => t.wallet_id === walletId)
+      .reduce((s, t) => s + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0)
+    return Number(w.starting_balance) + sum
+  }
+
+  const totalBalance = () => wallets.reduce((s, w) => s + walletBalance(w.id), 0)
+
+  const openHolderEdit = (w) => { setEditingHolderId(w.id); setHolderNameInput(w.holder_name) }
+
+  const saveHolderName = async (walletId) => {
+    if (!holderNameInput.trim()) return
+    await supabase.from('wallets').update({ holder_name: holderNameInput.trim() }).eq('id', walletId)
+    setEditingHolderId(null)
+    fetchWallets()
+  }
+
+  const saveTransaction = async () => {
+    if (!txForm.wallet_id) return alert('財布を選択してください')
+    if (!txForm.date) return alert('日付を入力してください')
+    const amount = parseFloat(txForm.amount)
+    if (!amount || amount <= 0) return alert('金額を正しく入力してください')
+    const category = txForm.category === 'その他（自由入力）' ? (txForm.customCategory.trim() || 'その他') : txForm.category
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('accounting_transactions').insert({
+      wallet_id: txForm.wallet_id, date: txForm.date, type: txForm.type, category, amount, memo: txForm.memo || null, created_by: user.id
+    })
+    setTxForm({ wallet_id: txForm.wallet_id, date: txForm.date, type: 'income', category: '部費', customCategory: '', amount: '', memo: '' })
+    fetchTransactions()
+  }
+
+  const deleteTransaction = async (id) => {
+    if (!window.confirm('この取引を削除しますか？')) return
+    await supabase.from('accounting_transactions').delete().eq('id', id)
+    fetchTransactions()
+  }
+
+  const toggleTreasurer = async (memberId, newVal) => {
+    await supabase.from('profiles').update({ is_treasurer: newVal }).eq('id', memberId)
+    fetchMembers()
+  }
+
+  // 管理者権限の付与・解除（芦田のみ操作可）
+  const toggleAdminRole = async (memberId, makeAdmin) => {
+    if (!window.confirm(makeAdmin ? 'この人を管理者にしますか？' : 'この人の管理者権限を外しますか？（会計担当権限も同時に外れます）')) return
+    await supabase.from('profiles').update({ role: makeAdmin ? 'admin' : 'member', ...(makeAdmin ? {} : { is_treasurer: false }) }).eq('id', memberId)
+    fetchMembers()
   }
 
   // Member CRUD
@@ -425,6 +511,7 @@ export default function Admin() {
     ['sponsors', '🤝 協賛'],
     ['orgchart', '🧑‍🤝‍🧑 体制図'],
     ['master', '⚙️ マスタ'],
+    ...(isTreasurer ? [['accounting', '💰 会計']] : []),
   ]
 
   const adminTabStyle = (t) => ({
@@ -490,7 +577,7 @@ export default function Admin() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '760px' }}>
                 <thead>
-                  <tr>{['名前','チーム','ポジション','生年','入部','支払区分','ステータス','操作'].map(h => (
+                  <tr>{[...['名前','チーム','ポジション','生年','入部','支払区分','ステータス'], ...(isTreasurerAdmin ? ['管理者権限'] : []), '操作'].map(h => (
                     <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}</tr>
                 </thead>
@@ -518,6 +605,18 @@ export default function Admin() {
                           {m.status === 'active' ? '在籍' : '休止中'}
                         </span>
                       </td>
+                      {isTreasurerAdmin && (
+                        <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
+                          <span style={{ background: m.role === 'admin' ? '#e8e0d8' : '#f0ebe5', color: m.role === 'admin' ? '#2a2220' : '#b0a89f', fontSize: '10.5px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', marginRight: '6px' }}>
+                            {m.role === 'admin' ? '管理者' : '一般'}
+                          </span>
+                          {m.role === 'admin' ? (
+                            <button style={btn('#e74c3c', 'white', { padding: '3px 8px', fontSize: '11px', ...(m.id === currentUserId ? { opacity: 0.4, cursor: 'not-allowed' } : {}) })} disabled={m.id === currentUserId} onClick={() => toggleAdminRole(m.id, false)}>解除</button>
+                          ) : (
+                            <button style={btn('#e8c84a', '#2a2220', { padding: '3px 8px', fontSize: '11px' })} onClick={() => toggleAdminRole(m.id, true)}>付与</button>
+                          )}
+                        </td>
+                      )}
                       <td style={{ padding: '9px 12px' }}>
                         <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '4px 9px', fontSize: '11.5px' })} onClick={() => openEditMember(m)}>編集</button>
                       </td>
@@ -897,6 +996,160 @@ export default function Admin() {
           <MasterSection category="event_type" title="📋 種別マスタ" />
           <MasterSection category="venue" title="📍 場所マスタ" />
           <MasterSection category="meetup_place" title="🚩 集合場所マスタ" />
+        </div>
+      )}
+
+      {/* 会計（出納帳） */}
+      {tab === 'accounting' && (
+        <div>
+          <div style={{ background: '#2a2220', borderRadius: '10px', padding: '18px 22px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.6)' }}>4財布合計残高</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', letterSpacing: '1px', color: '#e8c84a' }}>{fmtVND(totalBalance())}</div>
+          </div>
+
+          {/* 会計担当者の管理（芦田のみ操作可） */}
+          {isTreasurerAdmin && (
+            <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: '20px', border: '1.5px solid #e8c84a' }}>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#2a2220', marginBottom: '4px' }}>🔑 会計担当者の管理</div>
+              <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginBottom: '12px' }}>会計タブへのアクセス権限を付与・解除できます（対象は既に管理者権限を持つメンバー。新しい方をまだ管理者にしていない場合は先に管理者権限の付与が必要です）</div>
+              {members.filter(m => m.role === 'admin').map(m => (
+                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0ebe5', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{m.name}</span>
+                    {teamBadge(m.team)}
+                    {m.is_treasurer && <span style={{ background: '#fff3cd', color: '#856404', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>会計担当</span>}
+                  </div>
+                  {m.is_treasurer ? (
+                    <button style={btn('#e74c3c', 'white', { padding: '4px 10px', fontSize: '11.5px' })} onClick={() => toggleTreasurer(m.id, false)}>権限を外す</button>
+                  ) : (
+                    <button style={btn('#e8c84a', '#2a2220', { padding: '4px 10px', fontSize: '11.5px' })} onClick={() => toggleTreasurer(m.id, true)}>権限を付与</button>
+                  )}
+                </div>
+              ))}
+              {members.filter(m => m.role === 'admin').length === 0 && <div style={{ color: '#8a7f7a', fontSize: '12px' }}>管理者権限を持つメンバーがいません</div>}
+            </div>
+          )}
+
+          {/* 財布一覧 */}
+          <div className="grid-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '20px' }}>
+            {wallets.map(w => (
+              <div key={w.id} style={{ background: 'white', borderRadius: '10px', padding: '14px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: '#8a7f7a', marginBottom: '4px' }}>財布{w.code}</div>
+                {editingHolderId === w.id ? (
+                  <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                    <input style={{ ...inputStyle, padding: '4px 6px', fontSize: '12px' }} value={holderNameInput}
+                      onChange={e => setHolderNameInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && saveHolderName(w.id)} autoFocus />
+                    <button style={btn('#e8c84a', '#2a2220', { padding: '3px 8px', fontSize: '11px' })} onClick={() => saveHolderName(w.id)}>✓</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <div style={{ fontWeight: '700', fontSize: '14px', color: '#2a2220' }}>{w.holder_name}</div>
+                    <span style={{ fontSize: '10.5px', color: '#8a7f7a', cursor: 'pointer' }} onClick={() => openHolderEdit(w)}>✏️</span>
+                  </div>
+                )}
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', color: '#2a2220' }}>{fmtVND(walletBalance(w.id))}</div>
+              </div>
+            ))}
+            {wallets.length === 0 && <div style={{ color: '#8a7f7a', fontSize: '13px' }}>財布データがありません</div>}
+          </div>
+
+          {/* 記帳フォーム */}
+          <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: '20px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#2a2220', marginBottom: '12px' }}>✏️ 新規記帳</div>
+            <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+              <div>
+                <label style={labelStyle}>財布 *</label>
+                <select style={inputStyle} value={txForm.wallet_id} onChange={e => setTxForm({ ...txForm, wallet_id: e.target.value })}>
+                  <option value="">選択してください</option>
+                  {wallets.map(w => <option key={w.id} value={w.id}>財布{w.code}（{w.holder_name}）</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>日付 *</label>
+                <input style={inputStyle} type="date" value={txForm.date} onChange={e => setTxForm({ ...txForm, date: e.target.value })} />
+              </div>
+              <div>
+                <label style={labelStyle}>種別</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button style={btn(txForm.type === 'income' ? '#1a7a40' : '#f0ebe5', txForm.type === 'income' ? 'white' : '#8a7f7a', { flex: 1, padding: '9px' })}
+                    onClick={() => setTxForm({ ...txForm, type: 'income', category: '部費', customCategory: '' })}>収入</button>
+                  <button style={btn(txForm.type === 'expense' ? '#c0392b' : '#f0ebe5', txForm.type === 'expense' ? 'white' : '#8a7f7a', { flex: 1, padding: '9px' })}
+                    onClick={() => setTxForm({ ...txForm, type: 'expense', category: 'グランド代', customCategory: '' })}>支出</button>
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>カテゴリー</label>
+                <select style={inputStyle} value={txForm.category} onChange={e => setTxForm({ ...txForm, category: e.target.value })}>
+                  {(txForm.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              {txForm.category === 'その他（自由入力）' && (
+                <div style={{ gridColumn: '1/-1' }}>
+                  <label style={labelStyle}>カテゴリー名（自由入力）</label>
+                  <input style={inputStyle} value={txForm.customCategory} onChange={e => setTxForm({ ...txForm, customCategory: e.target.value })} placeholder="例：懇親会費" />
+                </div>
+              )}
+              <div>
+                <label style={labelStyle}>金額（VND） *</label>
+                <input style={inputStyle} type="number" value={txForm.amount} onChange={e => setTxForm({ ...txForm, amount: e.target.value })} placeholder="例：500000" />
+              </div>
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={labelStyle}>メモ</label>
+                <input style={inputStyle} value={txForm.memo} onChange={e => setTxForm({ ...txForm, memo: e.target.value })} placeholder="例：8月分部費（田中・山本）" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button style={btn('#e8c84a', '#2a2220', { padding: '10px 24px', fontWeight: '700' })} onClick={saveTransaction}>＋ 記帳する</button>
+            </div>
+          </div>
+
+          {/* 取引履歴 */}
+          <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#2a2220' }}>📖 取引履歴</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <span onClick={() => setTxWalletFilter('all')} style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '700', cursor: 'pointer', border: '1.5px solid', borderColor: txWalletFilter === 'all' ? '#e8c84a' : '#ccc', background: txWalletFilter === 'all' ? '#2a2220' : 'transparent', color: txWalletFilter === 'all' ? '#e8c84a' : '#8a7f7a' }}>全て</span>
+                {wallets.map(w => (
+                  <span key={w.id} onClick={() => setTxWalletFilter(w.id)} style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '700', cursor: 'pointer', border: '1.5px solid', borderColor: txWalletFilter === w.id ? '#e8c84a' : '#ccc', background: txWalletFilter === w.id ? '#2a2220' : 'transparent', color: txWalletFilter === w.id ? '#e8c84a' : '#8a7f7a' }}>財布{w.code}</span>
+                ))}
+              </div>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '640px' }}>
+                <thead>
+                  <tr>{['日付','財布','種別','カテゴリー','金額','メモ','操作'].map(h => (
+                    <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {transactions.filter(t => txWalletFilter === 'all' || t.wallet_id === txWalletFilter).length === 0 && (
+                    <tr><td colSpan={7} style={{ padding: '20px', textAlign: 'center', color: '#8a7f7a' }}>取引記録がありません</td></tr>
+                  )}
+                  {transactions.filter(t => txWalletFilter === 'all' || t.wallet_id === txWalletFilter).map(t => {
+                    const w = wallets.find(w => w.id === t.wallet_id)
+                    return (
+                      <tr key={t.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
+                        <td style={{ padding: '9px 12px', color: '#8a7f7a', whiteSpace: 'nowrap' }}>{t.date}</td>
+                        <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>財布{w?.code || '?'}（{w?.holder_name || '－'}）</td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <span style={{ background: t.type === 'income' ? '#d4f4e0' : '#fde8e6', color: t.type === 'income' ? '#1a7a40' : '#c0392b', fontSize: '10.5px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px' }}>
+                            {t.type === 'income' ? '収入' : '支出'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>{t.category}</td>
+                        <td style={{ padding: '9px 12px', fontWeight: '600', whiteSpace: 'nowrap', color: t.type === 'income' ? '#1a7a40' : '#c0392b' }}>{t.type === 'income' ? '+' : '－'}{fmtVND(t.amount)}</td>
+                        <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{t.memo || '－'}</td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <button style={btn('#e74c3c', 'white', { padding: '4px 9px', fontSize: '11.5px' })} onClick={() => deleteTransaction(t.id)}>削除</button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
