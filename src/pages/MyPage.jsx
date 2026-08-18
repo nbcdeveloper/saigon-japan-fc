@@ -122,7 +122,7 @@ export default function MyPage() {
           </div>
           <div style={{ gridColumn: '1/-1' }}>
             <label style={labelStyle}>ローマ字氏名</label>
-            <input style={inputStyle} value={form.name_romaji} onChange={e => setForm({ ...form, name_romaji: e.target.value })} placeholder="例：TANAKA Kenta" />
+            <input style={inputStyle} value={form.name_romaji} onChange={e => setForm({ ...form, name_romaji: e.target.value })} placeholder="例：Tanaka Kenta" />
           </div>
           <div>
             <label style={labelStyle}>ポジション１</label>

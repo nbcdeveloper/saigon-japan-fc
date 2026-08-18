@@ -1160,7 +1160,7 @@ export default function Admin() {
             <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>{editMember ? '✏️ メンバー編集' : '👥 メンバー追加'}</div>
             <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
               <div><label style={labelStyle}>氏名 *</label><input style={inputStyle} value={memberForm.name} onChange={e => setMemberForm({ ...memberForm, name: e.target.value })} placeholder="例：田中 健太" /></div>
-              <div><label style={labelStyle}>ローマ字氏名</label><input style={inputStyle} value={memberForm.name_romaji} onChange={e => setMemberForm({ ...memberForm, name_romaji: e.target.value })} placeholder="例：TANAKA Kenta" /></div>
+              <div><label style={labelStyle}>ローマ字氏名</label><input style={inputStyle} value={memberForm.name_romaji} onChange={e => setMemberForm({ ...memberForm, name_romaji: e.target.value })} placeholder="例：Tanaka Kenta" /></div>
               <div><label style={labelStyle}>メインチーム</label><select style={inputStyle} value={memberForm.team} onChange={e => setMemberForm({ ...memberForm, team: e.target.value })}><option value="u40">U-40</option><option value="o40">O-40</option></select></div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '18px' }}>
                 <input type="checkbox" id="dual_team_check" checked={!!memberForm.dual_team} onChange={e => setMemberForm({ ...memberForm, dual_team: e.target.checked })} />
