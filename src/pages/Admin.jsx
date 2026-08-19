@@ -16,6 +16,8 @@ const labelStyle = {
   fontSize: '11.5px', fontWeight: '600', color: '#8a7f7a', display: 'block', marginBottom: '4px'
 }
 
+const RETIRED_NUMBERS = [3, 5] // 永久欠番
+
 const TIME_OPTIONS = []
 for (let h = 0; h < 24; h++) {
   for (let m of [0, 30]) {
@@ -721,7 +723,7 @@ export default function Admin() {
         <div>
           {/* 凡例 */}
           <div style={{ display: 'flex', gap: '14px', marginBottom: '16px', flexWrap: 'wrap' }}>
-            {[['#f0f0f0','#555','1px solid #ccc','ホーム（白）使用中'],['#d4f4e0','#1a7a40','none','アウェイ（緑）使用中'],['#faf8f5','#c8bfb8','1px dashed #c0b8b0','空き番号']].map(([bg,color,border,label]) => (
+            {[['#f0f0f0','#555','1px solid #ccc','ホーム（白）使用中'],['#d4f4e0','#1a7a40','none','アウェイ（緑）使用中'],['#faf8f5','#c8bfb8','1px dashed #c0b8b0','空き番号'],['#2a2220','#e8c84a','none','永久欠番']].map(([bg,color,border,label]) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#8a7f7a' }}>
                 <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: bg, border }} />
                 {label}
@@ -738,12 +740,13 @@ export default function Admin() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: '9px' }}>
               {Array.from({ length: 99 }, (_, i) => i + 1).map(num => {
                 const owner = members.find(m => m.jersey_home === num)
+                const retired = RETIRED_NUMBERS.includes(num)
                 return (
                   <div key={num}
-                    style={{ background: owner ? '#f0f0f0' : '#faf8f5', borderRadius: '8px', padding: '9px 5px 7px', textAlign: 'center', border: owner ? '2px solid #999' : '2px dashed #c0b8b0', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', transition: 'all .15s' }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', lineHeight: 1, color: owner ? '#555' : '#c8bfb8' }}>{num}</div>
-                    <div style={{ fontSize: '8.5px', color: '#8a7f7a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner ? owner.name : '－'}</div>
-                    <div style={{ fontSize: '7.5px', fontWeight: '700', marginTop: '2px', color: owner ? '#888' : '#c8bfb8' }}>{owner ? '使用中' : 'OPEN'}</div>
+                    style={{ background: retired ? '#2a2220' : (owner ? '#f0f0f0' : '#faf8f5'), borderRadius: '8px', padding: '9px 5px 7px', textAlign: 'center', border: retired ? '2px solid #2a2220' : (owner ? '2px solid #999' : '2px dashed #c0b8b0'), cursor: retired ? 'not-allowed' : 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', transition: 'all .15s' }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', lineHeight: 1, color: retired ? '#e8c84a' : (owner ? '#555' : '#c8bfb8') }}>{num}</div>
+                    <div style={{ fontSize: '8.5px', color: retired ? 'rgba(255,255,255,0.55)' : '#8a7f7a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{retired ? '－' : (owner ? owner.name : '－')}</div>
+                    <div style={{ fontSize: '7.5px', fontWeight: '700', marginTop: '2px', color: retired ? '#e8c84a' : (owner ? '#888' : '#c8bfb8') }}>{retired ? '永久欠番' : (owner ? '使用中' : 'OPEN')}</div>
                   </div>
                 )
               })}
@@ -759,12 +762,13 @@ export default function Admin() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: '9px' }}>
               {Array.from({ length: 99 }, (_, i) => i + 1).map(num => {
                 const owner = members.find(m => m.jersey_away === num)
+                const retired = RETIRED_NUMBERS.includes(num)
                 return (
                   <div key={num}
-                    style={{ background: owner ? '#d4f4e0' : '#faf8f5', borderRadius: '8px', padding: '9px 5px 7px', textAlign: 'center', border: owner ? '2px solid #27ae60' : '2px dashed #c0b8b0', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', transition: 'all .15s' }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', lineHeight: 1, color: owner ? '#1a7a40' : '#c8bfb8' }}>{num}</div>
-                    <div style={{ fontSize: '8.5px', color: '#8a7f7a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner ? owner.name : '－'}</div>
-                    <div style={{ fontSize: '7.5px', fontWeight: '700', marginTop: '2px', color: owner ? '#1a7a40' : '#c8bfb8' }}>{owner ? '使用中' : 'OPEN'}</div>
+                    style={{ background: retired ? '#2a2220' : (owner ? '#d4f4e0' : '#faf8f5'), borderRadius: '8px', padding: '9px 5px 7px', textAlign: 'center', border: retired ? '2px solid #2a2220' : (owner ? '2px solid #27ae60' : '2px dashed #c0b8b0'), cursor: retired ? 'not-allowed' : 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', transition: 'all .15s' }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', lineHeight: 1, color: retired ? '#e8c84a' : (owner ? '#1a7a40' : '#c8bfb8') }}>{num}</div>
+                    <div style={{ fontSize: '8.5px', color: retired ? 'rgba(255,255,255,0.55)' : '#8a7f7a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{retired ? '－' : (owner ? owner.name : '－')}</div>
+                    <div style={{ fontSize: '7.5px', fontWeight: '700', marginTop: '2px', color: retired ? '#e8c84a' : (owner ? '#1a7a40' : '#c8bfb8') }}>{retired ? '永久欠番' : (owner ? '使用中' : 'OPEN')}</div>
                   </div>
                 )
               })}
