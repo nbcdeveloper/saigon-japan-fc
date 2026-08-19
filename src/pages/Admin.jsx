@@ -424,11 +424,16 @@ export default function Admin() {
     setMatchModal(true)
   }
 
-  // 過去の試合系イベント（スケジュールから）
-  const matchEvents = events.filter(ev =>
-    ['公式戦','フレンドリー','カップ戦','遠征'].includes(ev.event_type) &&
-    ev.event_date < new Date().toISOString().split('T')[0]
-  ).sort((a, b) => b.event_date.localeCompare(a.event_date))
+  // 過去（当日含む）の試合系イベント（スケジュールから試合結果を選べるように）
+  // 試合ではないイベント種別だけを除外する方式（種別マスタが増えても対応不要）
+  const NON_MATCH_EVENT_TYPES = ['ゴルフコンペ', 'トレーニング', 'ミーティング', '送別会／歓迎会']
+  const todayLocalStr = (() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })()
+  const matchEvents = events
+    .filter(ev => !NON_MATCH_EVENT_TYPES.includes(ev.event_type) && ev.event_date <= todayLocalStr)
+    .sort((a, b) => b.event_date.localeCompare(a.event_date))
 
   const onSelectEvent = (eventId) => {
     const ev = events.find(e => e.id === eventId)
