@@ -22,7 +22,7 @@ export default function Members() {
     return matchTeam && matchSearch
   })
 
-  // 並び替え: 標準（チーム→名前）／A-Z（ローマ字氏名優先、未入力は氏名で代用）／年齢順（生年が古い＝年上から）
+  // 並び替え: 標準（チーム→名前）／A-Z（ローマ字氏名優先、未入力は氏名で代用）／年齢順（生年が古い＝年上から）／入部順（入部年月が古い順、未入力は末尾）
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === 'az') {
       const an = (a.name_romaji || a.name || '').toUpperCase()
@@ -33,6 +33,11 @@ export default function Members() {
       const aKey = a.birth_year ? a.birth_year * 10000 + (a.birth_month || 0) * 100 + (a.birth_day || 0) : 999999
       const bKey = b.birth_year ? b.birth_year * 10000 + (b.birth_month || 0) * 100 + (b.birth_day || 0) : 999999
       return aKey - bKey
+    }
+    if (sortBy === 'joined') {
+      const aKey = a.joined_at || '9999-99-99'
+      const bKey = b.joined_at || '9999-99-99'
+      return aKey.localeCompare(bKey)
     }
     return 0
   })
@@ -82,6 +87,7 @@ export default function Members() {
         <div style={sortTabStyle('default')} onClick={() => setSortBy('default')}>標準</div>
         <div style={sortTabStyle('az')} onClick={() => setSortBy('az')}>A-Z</div>
         <div style={sortTabStyle('age')} onClick={() => setSortBy('age')}>年齢順（年上から）</div>
+        <div style={sortTabStyle('joined')} onClick={() => setSortBy('joined')}>入部順（古いもの順）</div>
       </div>
 
       {loading ? (
