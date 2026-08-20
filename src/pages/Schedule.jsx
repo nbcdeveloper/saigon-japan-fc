@@ -3,6 +3,12 @@ import { supabase } from '../supabase'
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
+// UTCではなくローカル時間（ベトナム時間）基準で「今日」の日付文字列を作る
+const todayLocalStr = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function Schedule() {
   const [upcomingEvents, setUpcomingEvents] = useState([])
   const [pastEvents, setPastEvents] = useState([])
@@ -23,7 +29,7 @@ export default function Schedule() {
   const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [calendarEvents, setCalendarEvents] = useState([])
   const [calendarLoading, setCalendarLoading] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState(() => todayLocalStr())
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -35,7 +41,7 @@ export default function Schedule() {
   }, [])
 
   const fetchAll = async (uid) => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayLocalStr()
     const [{ data: upcoming }, { data: past }, { data: allMembers }] = await Promise.all([
       supabase.from('events').select('*').gte('event_date', today).order('event_date'),
       supabase.from('events').select('*').lt('event_date', today).order('event_date', { ascending: false }).limit(10),
@@ -311,7 +317,7 @@ export default function Schedule() {
   const CalendarView = () => {
     const weeks = buildCalendarGrid(calendarMonth)
     const monthLabel = `${calendarMonth.getFullYear()}年 ${calendarMonth.getMonth() + 1}月`
-    const todayStr = new Date().toISOString().split('T')[0]
+    const todayStr = todayLocalStr()
     const dateStrOf = (day) => `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const eventsOnDay = (day) => day ? calendarEvents.filter(e => e.event_date === dateStrOf(day)) : []
     const selectedDayEvents = calendarEvents.filter(e => e.event_date === selectedDate)

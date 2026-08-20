@@ -18,6 +18,12 @@ const labelStyle = {
 
 const RETIRED_NUMBERS = [3, 5] // 永久欠番
 
+// UTCではなくローカル時間（ベトナム時間）基準で「今日」の日付文字列を作る
+const todayLocalStr = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 const TIME_OPTIONS = []
 for (let h = 0; h < 24; h++) {
   for (let m of [0, 30]) {
@@ -87,8 +93,7 @@ export default function Admin() {
   const [currentUserId, setCurrentUserId] = useState(null)
   const [wallets, setWallets] = useState([])
   const [transactions, setTransactions] = useState([])
-  const todayStr = new Date().toISOString().split('T')[0]
-  const [txForm, setTxForm] = useState({ wallet_id: '', date: todayStr, type: 'income', category: '部費', customCategory: '', amount: '', memo: '' })
+  const [txForm, setTxForm] = useState({ wallet_id: '', date: todayLocalStr(), type: 'income', category: '部費', customCategory: '', amount: '', memo: '' })
   const [txWalletFilter, setTxWalletFilter] = useState('all')
   const [editingHolderId, setEditingHolderId] = useState(null)
   const [holderNameInput, setHolderNameInput] = useState('')
@@ -427,12 +432,8 @@ export default function Admin() {
   // 過去（当日含む）の試合系イベント（スケジュールから試合結果を選べるように）
   // 試合ではないイベント種別だけを除外する方式（種別マスタが増えても対応不要）
   const NON_MATCH_EVENT_TYPES = ['ゴルフコンペ', 'トレーニング', 'ミーティング', '送別会／歓迎会']
-  const todayLocalStr = (() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  })()
   const matchEvents = events
-    .filter(ev => !NON_MATCH_EVENT_TYPES.includes(ev.event_type) && ev.event_date <= todayLocalStr)
+    .filter(ev => !NON_MATCH_EVENT_TYPES.includes(ev.event_type) && ev.event_date <= todayLocalStr())
     .sort((a, b) => b.event_date.localeCompare(a.event_date))
 
   const onSelectEvent = (eventId) => {
@@ -1222,14 +1223,14 @@ export default function Admin() {
               <div style={{ gridColumn: '1/-1' }}><label style={labelStyle}>タイトル *</label><input style={inputStyle} value={eventForm.title} onChange={e => setEventForm({ ...eventForm, title: e.target.value })} placeholder="例：通常練習" /></div>
               <div><label style={labelStyle}>カテゴリー</label><select style={inputStyle} value={eventForm.category} onChange={e => setEventForm({ ...eventForm, category: e.target.value })}><option value="u40">U-40</option><option value="o40">O-40</option><option value="joint">合同</option></select></div>
               <div><label style={labelStyle}>種別</label><select style={inputStyle} value={eventForm.event_type} onChange={e => setEventForm({ ...eventForm, event_type: e.target.value })}><option value="">選択</option>{masters.event_type.map(m => <option key={m.id} value={m.value}>{m.value}</option>)}</select></div>
-              <div><label style={labelStyle}>日付 *</label><input style={inputStyle} type="date" min={new Date().toISOString().split('T')[0]} value={eventForm.event_date} onChange={e => setEventForm({ ...eventForm, event_date: e.target.value, deadline: '' })} /></div>
+              <div><label style={labelStyle}>日付 *</label><input style={inputStyle} type="date" min={todayLocalStr()} value={eventForm.event_date} onChange={e => setEventForm({ ...eventForm, event_date: e.target.value, deadline: '' })} /></div>
               <div><label style={labelStyle}>場所（会場）</label><select style={inputStyle} value={eventForm.venue} onChange={e => setEventForm({ ...eventForm, venue: e.target.value })}><option value="">選択</option>{masters.venue.map(m => <option key={m.id} value={m.value}>{m.value}</option>)}</select></div>
               <div><label style={labelStyle}>開始時間／キックオフ</label><TimeInput value={eventForm.kickoff_time} onChange={v => setEventForm({ ...eventForm, kickoff_time: v })} /></div>
               <div><label style={labelStyle}>終了時間</label><TimeInput value={eventForm.end_time || ''} onChange={v => setEventForm({ ...eventForm, end_time: v })} /></div>
               <div><label style={labelStyle}>集合場所</label><select style={inputStyle} value={eventForm.meetup_place} onChange={e => setEventForm({ ...eventForm, meetup_place: e.target.value })}><option value="">選択</option>{masters.meetup_place.map(m => <option key={m.id} value={m.value}>{m.value}</option>)}</select></div>
               <div><label style={labelStyle}>集合時間</label><TimeInput value={eventForm.meetup_time} onChange={v => setEventForm({ ...eventForm, meetup_time: v })} /></div>
               <div><label style={labelStyle}>出欠締め切り</label><input style={inputStyle} type="date"
-                min={new Date().toISOString().split('T')[0]}
+                min={todayLocalStr()}
                 max={eventForm.event_date || ''}
                 value={eventForm.deadline}
                 onChange={e => setEventForm({ ...eventForm, deadline: e.target.value })}

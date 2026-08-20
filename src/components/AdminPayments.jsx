@@ -4,6 +4,12 @@ import { supabase } from '../supabase'
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
 const YEAR = new Date().getFullYear()
 
+// UTCではなくローカル時間（ベトナム時間）基準で「今日」の日付文字列を作る
+const todayLocalStr = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function AdminPayments({ members }) {
   const [dues, setDues] = useState({})
   const [uniforms, setUniforms] = useState({})
@@ -43,13 +49,13 @@ export default function AdminPayments({ members }) {
     const existing = dues[memberId]?.[month]
     if (existing) {
       const newPaid = !existing.paid
-      await supabase.from('dues').update({ paid: newPaid, paid_at: newPaid ? new Date().toISOString().split('T')[0] : null }).eq('id', existing.id)
+      await supabase.from('dues').update({ paid: newPaid, paid_at: newPaid ? todayLocalStr() : null }).eq('id', existing.id)
       setDues(prev => ({
         ...prev,
         [memberId]: { ...prev[memberId], [month]: { ...existing, paid: newPaid } }
       }))
     } else {
-      const { data } = await supabase.from('dues').insert({ member_id: memberId, year: YEAR, month, paid: true, paid_at: new Date().toISOString().split('T')[0] }).select().single()
+      const { data } = await supabase.from('dues').insert({ member_id: memberId, year: YEAR, month, paid: true, paid_at: todayLocalStr() }).select().single()
       if (data) {
         setDues(prev => ({
           ...prev,
@@ -64,7 +70,7 @@ export default function AdminPayments({ members }) {
     const field = type === 'home' ? 'home_collected' : 'away_collected'
     const dateField = type === 'home' ? 'home_collected_at' : 'away_collected_at'
     const newVal = !existing?.[field]
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayLocalStr()
 
     if (existing) {
       await supabase.from('uniforms').update({ [field]: newVal, [dateField]: newVal ? today : null }).eq('member_id', memberId)

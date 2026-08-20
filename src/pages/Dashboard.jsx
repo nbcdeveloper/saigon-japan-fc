@@ -66,7 +66,8 @@ export default function Dashboard() {
   }
 
   const fetchEvents = async () => {
-    const today = new Date().toISOString().split('T')[0]
+    const d = new Date()
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const { data } = await supabase.from('events').select('*').gte('event_date', today).order('event_date').limit(3)
     if (data) setEvents(data)
   }
