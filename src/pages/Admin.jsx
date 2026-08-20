@@ -76,6 +76,16 @@ export default function Admin() {
   })
   const [scorerInputs, setScorerInputs] = useState([{ member_id: '', minute: '', assist_member_id: '' }])
 
+  // SEFA S11 2026（全12クラブの公式順位表・得点ランキングを管理者が手入力）
+  const [sefaStandings, setSefaStandings] = useState([])
+  const [sefaTopScorers, setSefaTopScorers] = useState([])
+  const [standingModal, setStandingModal] = useState(false)
+  const [editStanding, setEditStanding] = useState(null)
+  const [standingForm, setStandingForm] = useState({ team_name: '', played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, sort_order: 0 })
+  const [sefaScorerModal, setSefaScorerModal] = useState(false)
+  const [editSefaScorer, setEditSefaScorer] = useState(null)
+  const [sefaScorerForm, setSefaScorerForm] = useState({ player_name: '', team_name: '', goals: 0, sort_order: 0 })
+
   // Sponsors
   const [sponsors, setSponsors] = useState([])
   const [sponsorModal, setSponsorModal] = useState(false)
@@ -123,6 +133,8 @@ export default function Admin() {
       fetchSponsors()
       fetchMasters()
       fetchOrgChart()
+      fetchSefaStandings()
+      fetchSefaTopScorers()
     }
     if (data?.is_treasurer) {
       setIsTreasurer(true)
@@ -249,6 +261,96 @@ export default function Admin() {
     fetchOrgChart()
   }
 
+  // SEFA S11 2026 順位表
+  const fetchSefaStandings = async () => {
+    const { data } = await supabase.from('sefa_standings').select('*').order('sort_order')
+    if (data) setSefaStandings(data)
+  }
+
+  const openAddStanding = () => {
+    setEditStanding(null)
+    const maxOrder = sefaStandings.length > 0 ? Math.max(...sefaStandings.map(s => s.sort_order || 0)) : 0
+    setStandingForm({ team_name: '', played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, sort_order: maxOrder + 1 })
+    setStandingModal(true)
+  }
+
+  const openEditStanding = (s) => {
+    setEditStanding(s)
+    setStandingForm({ team_name: s.team_name, played: s.played, won: s.won, drawn: s.drawn, lost: s.lost, gf: s.gf, ga: s.ga, sort_order: s.sort_order })
+    setStandingModal(true)
+  }
+
+  const saveStanding = async () => {
+    if (!standingForm.team_name) return alert('チーム名は必須です')
+    const payload = {
+      team_name: standingForm.team_name,
+      played: parseInt(standingForm.played) || 0,
+      won: parseInt(standingForm.won) || 0,
+      drawn: parseInt(standingForm.drawn) || 0,
+      lost: parseInt(standingForm.lost) || 0,
+      gf: parseInt(standingForm.gf) || 0,
+      ga: parseInt(standingForm.ga) || 0,
+      sort_order: parseInt(standingForm.sort_order) || 0,
+      updated_at: new Date().toISOString(),
+    }
+    if (editStanding) {
+      await supabase.from('sefa_standings').update(payload).eq('id', editStanding.id)
+    } else {
+      await supabase.from('sefa_standings').insert(payload)
+    }
+    setStandingModal(false)
+    fetchSefaStandings()
+  }
+
+  const deleteStanding = async (id) => {
+    if (!window.confirm('削除しますか？')) return
+    await supabase.from('sefa_standings').delete().eq('id', id)
+    fetchSefaStandings()
+  }
+
+  // SEFA S11 2026 得点ランキング
+  const fetchSefaTopScorers = async () => {
+    const { data } = await supabase.from('sefa_top_scorers').select('*').order('sort_order')
+    if (data) setSefaTopScorers(data)
+  }
+
+  const openAddSefaScorer = () => {
+    setEditSefaScorer(null)
+    const maxOrder = sefaTopScorers.length > 0 ? Math.max(...sefaTopScorers.map(s => s.sort_order || 0)) : 0
+    setSefaScorerForm({ player_name: '', team_name: '', goals: 0, sort_order: maxOrder + 1 })
+    setSefaScorerModal(true)
+  }
+
+  const openEditSefaScorer = (s) => {
+    setEditSefaScorer(s)
+    setSefaScorerForm({ player_name: s.player_name, team_name: s.team_name, goals: s.goals, sort_order: s.sort_order })
+    setSefaScorerModal(true)
+  }
+
+  const saveSefaScorer = async () => {
+    if (!sefaScorerForm.player_name) return alert('選手名は必須です')
+    const payload = {
+      player_name: sefaScorerForm.player_name,
+      team_name: sefaScorerForm.team_name,
+      goals: parseInt(sefaScorerForm.goals) || 0,
+      sort_order: parseInt(sefaScorerForm.sort_order) || 0,
+      updated_at: new Date().toISOString(),
+    }
+    if (editSefaScorer) {
+      await supabase.from('sefa_top_scorers').update(payload).eq('id', editSefaScorer.id)
+    } else {
+      await supabase.from('sefa_top_scorers').insert(payload)
+    }
+    setSefaScorerModal(false)
+    fetchSefaTopScorers()
+  }
+
+  const deleteSefaScorer = async (id) => {
+    if (!window.confirm('削除しますか？')) return
+    await supabase.from('sefa_top_scorers').delete().eq('id', id)
+    fetchSefaTopScorers()
+  }
+
   const fetchMasters = async () => {
     const { data } = await supabase.from('masters').select('*').order('sort_order')
     if (data) {
@@ -357,6 +459,17 @@ export default function Admin() {
 
   const saveMember = async () => {
     if (!memberForm.name) return alert('氏名は必須です')
+    const jerseyHome = memberForm.jersey_home ? parseInt(memberForm.jersey_home) : null
+    const jerseyAway = memberForm.jersey_away ? parseInt(memberForm.jersey_away) : null
+    // 念のため保存時にも重複・永久欠番チェック（同時編集などのすり抜け対策）
+    if (jerseyHome && RETIRED_NUMBERS.includes(jerseyHome)) return alert(`Home #${jerseyHome} は永久欠番のため使用できません`)
+    if (jerseyAway && RETIRED_NUMBERS.includes(jerseyAway)) return alert(`Away #${jerseyAway} は永久欠番のため使用できません`)
+    if (jerseyHome && members.some(m => m.jersey_home === jerseyHome && (!editMember || m.id !== editMember.id))) {
+      return alert(`Home #${jerseyHome} は既に他のメンバーが使用中です`)
+    }
+    if (jerseyAway && members.some(m => m.jersey_away === jerseyAway && (!editMember || m.id !== editMember.id))) {
+      return alert(`Away #${jerseyAway} は既に他のメンバーが使用中です`)
+    }
     const profileData = {
       name: memberForm.name, name_romaji: memberForm.name_romaji || null, team: memberForm.team, position1: memberForm.position1,
       position2: memberForm.position2 || null,
@@ -364,8 +477,8 @@ export default function Admin() {
       birth_month: memberForm.birth_month ? parseInt(memberForm.birth_month) : null,
       birth_day: memberForm.birth_day ? parseInt(memberForm.birth_day) : null,
       joined_at: memberForm.joined_at || null, status: memberForm.status, dues_type: memberForm.dues_type,
-      jersey_home: memberForm.jersey_home ? parseInt(memberForm.jersey_home) : null,
-      jersey_away: memberForm.jersey_away ? parseInt(memberForm.jersey_away) : null,
+      jersey_home: jerseyHome,
+      jersey_away: jerseyAway,
       dual_team: !!memberForm.dual_team,
     }
     if (editMember) {
@@ -514,6 +627,7 @@ export default function Admin() {
     ['schedule', '📅 スケジュール'],
     ['members', '👥 メンバー'],
     ['matches', '🏆 試合結果'],
+    ['sefa', '⚽ SEFA S11'],
     ['payments', '💴 部費'],
     ['jersey', '👕 背番号'],
     ['sponsors', '🤝 協賛'],
@@ -716,6 +830,90 @@ export default function Admin() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SEFA S11 2026 */}
+      {tab === 'sefa' && (
+        <div>
+          <div style={{ fontSize: '12.5px', color: '#8a7f7a', marginBottom: '18px', lineHeight: 1.6 }}>
+            SEFA公式発表の最新の順位表・得点ランキングを、ここで手入力して公開ページに反映します。自チームの試合結果はいつも通り「🏆 試合結果」タブから登録してください（種別を「リーグ戦」にすると、SEFAページの「結果」欄に自動で表示されます）。
+          </div>
+
+          {/* 順位表管理 */}
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '1px', color: '#2a2220' }}>📊 順位表</div>
+              <button style={btn('#2a2220', '#e8c84a', { padding: '4px 10px', fontSize: '11.5px' })} onClick={openAddStanding}>＋ チーム追加</button>
+            </div>
+            <div style={{ background: 'white', borderRadius: '10px', padding: '14px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '620px' }}>
+                  <thead>
+                    <tr>{['チーム', '試合', '勝', '分', '敗', '得点', '失点', '操作'].map(h => (
+                      <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '8px 10px', textAlign: 'left', fontSize: '11.5px', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {sefaStandings.length === 0 && <tr><td colSpan={8} style={{ padding: '16px', textAlign: 'center', color: '#8a7f7a' }}>データがありません</td></tr>}
+                    {sefaStandings.map(s => (
+                      <tr key={s.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
+                        <td style={{ padding: '7px 10px', fontWeight: '600', whiteSpace: 'nowrap' }}>{s.team_name}</td>
+                        <td style={{ padding: '7px 10px' }}>{s.played}</td>
+                        <td style={{ padding: '7px 10px' }}>{s.won}</td>
+                        <td style={{ padding: '7px 10px' }}>{s.drawn}</td>
+                        <td style={{ padding: '7px 10px' }}>{s.lost}</td>
+                        <td style={{ padding: '7px 10px' }}>{s.gf}</td>
+                        <td style={{ padding: '7px 10px' }}>{s.ga}</td>
+                        <td style={{ padding: '7px 10px' }}>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '3px 8px', fontSize: '11px' })} onClick={() => openEditStanding(s)}>編集</button>
+                            <button style={btn('#e74c3c', 'white', { padding: '3px 8px', fontSize: '11px' })} onClick={() => deleteStanding(s.id)}>削除</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ fontSize: '11px', color: '#8a7f7a', marginTop: '8px' }}>※ 公開ページでは勝点（勝×3＋分×1）→得失点差の順に自動で並び替わります。ここでは入力用に登録順で表示しています。</div>
+            </div>
+          </div>
+
+          {/* 得点ランキング管理 */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '1px', color: '#2a2220' }}>⚽ 得点ランキング</div>
+              <button style={btn('#2a2220', '#e8c84a', { padding: '4px 10px', fontSize: '11.5px' })} onClick={openAddSefaScorer}>＋ 選手追加</button>
+            </div>
+            <div style={{ background: 'white', borderRadius: '10px', padding: '14px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '460px' }}>
+                  <thead>
+                    <tr>{['選手', 'チーム', '得点', '操作'].map(h => (
+                      <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '8px 10px', textAlign: 'left', fontSize: '11.5px', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {sefaTopScorers.length === 0 && <tr><td colSpan={4} style={{ padding: '16px', textAlign: 'center', color: '#8a7f7a' }}>データがありません</td></tr>}
+                    {sefaTopScorers.map(s => (
+                      <tr key={s.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
+                        <td style={{ padding: '7px 10px', fontWeight: '600', whiteSpace: 'nowrap' }}>{s.player_name}</td>
+                        <td style={{ padding: '7px 10px', color: '#8a7f7a', whiteSpace: 'nowrap' }}>{s.team_name}</td>
+                        <td style={{ padding: '7px 10px' }}>{s.goals}</td>
+                        <td style={{ padding: '7px 10px' }}>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '3px 8px', fontSize: '11px' })} onClick={() => openEditSefaScorer(s)}>編集</button>
+                            <button style={btn('#e74c3c', 'white', { padding: '3px 8px', fontSize: '11px' })} onClick={() => deleteSefaScorer(s.id)}>削除</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -1194,8 +1392,32 @@ export default function Admin() {
                 </div>
               </div>
               <div><label style={labelStyle}>入部年月</label><input style={inputStyle} type="month" value={memberForm.joined_at?.slice(0,7) || ''} onChange={e => setMemberForm({ ...memberForm, joined_at: e.target.value + '-01' })} /></div>
-              <div><label style={labelStyle}>Home 背番号</label><input style={inputStyle} type="number" value={memberForm.jersey_home} onChange={e => setMemberForm({ ...memberForm, jersey_home: e.target.value })} /></div>
-              <div><label style={labelStyle}>Away 背番号</label><input style={inputStyle} type="number" value={memberForm.jersey_away} onChange={e => setMemberForm({ ...memberForm, jersey_away: e.target.value })} /></div>
+              {(() => {
+                // 自分以外がすでに使用中の番号・永久欠番は選択肢から除外する
+                const homeTaken = new Set(members.filter(m => m.jersey_home && (!editMember || m.id !== editMember.id)).map(m => m.jersey_home))
+                const awayTaken = new Set(members.filter(m => m.jersey_away && (!editMember || m.id !== editMember.id)).map(m => m.jersey_away))
+                const allNumbers = Array.from({ length: 99 }, (_, i) => i + 1).filter(n => !RETIRED_NUMBERS.includes(n))
+                return (
+                  <>
+                    <div><label style={labelStyle}>Home 背番号</label>
+                      <select style={inputStyle} value={memberForm.jersey_home} onChange={e => setMemberForm({ ...memberForm, jersey_home: e.target.value })}>
+                        <option value="">－（未設定）</option>
+                        {allNumbers.map(n => (
+                          <option key={n} value={n} disabled={homeTaken.has(n)}>{n}{homeTaken.has(n) ? '（使用中）' : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div><label style={labelStyle}>Away 背番号</label>
+                      <select style={inputStyle} value={memberForm.jersey_away} onChange={e => setMemberForm({ ...memberForm, jersey_away: e.target.value })}>
+                        <option value="">－（未設定）</option>
+                        {allNumbers.map(n => (
+                          <option key={n} value={n} disabled={awayTaken.has(n)}>{n}{awayTaken.has(n) ? '（使用中）' : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )
+              })()}
               <div><label style={labelStyle}>支払区分</label><select style={inputStyle} value={memberForm.dues_type} onChange={e => setMemberForm({ ...memberForm, dues_type: e.target.value })}><option value="monthly">月額払い</option><option value="spot">都度払い</option></select></div>
               <div><label style={labelStyle}>ステータス</label><select style={inputStyle} value={memberForm.status} onChange={e => setMemberForm({ ...memberForm, status: e.target.value })}><option value="active">在籍</option><option value="inactive">休止中</option></select></div>
             </div>
@@ -1270,7 +1492,7 @@ export default function Admin() {
               <div><label style={labelStyle}>チーム</label><select style={inputStyle} value={matchForm.team} onChange={e => setMatchForm({ ...matchForm, team: e.target.value })}><option value="u40">U-40</option><option value="o40">O-40</option></select></div>
               <div><label style={labelStyle}>日付 *</label><input style={inputStyle} type="date" value={matchForm.match_date} onChange={e => setMatchForm({ ...matchForm, match_date: e.target.value })} /></div>
               <div><label style={labelStyle}>相手チーム *</label><input style={inputStyle} value={matchForm.opponent} onChange={e => setMatchForm({ ...matchForm, opponent: e.target.value })} placeholder="例：ハノイ日本人FC" /></div>
-              <div><label style={labelStyle}>種別</label><select style={inputStyle} value={matchForm.match_type} onChange={e => setMatchForm({ ...matchForm, match_type: e.target.value })}>{['公式戦','フレンドリー','カップ戦','遠征'].map(t => <option key={t}>{t}</option>)}</select></div>
+              <div><label style={labelStyle}>種別</label><select style={inputStyle} value={matchForm.match_type} onChange={e => setMatchForm({ ...matchForm, match_type: e.target.value })}>{['公式戦','リーグ戦','フレンドリー','カップ戦','遠征'].map(t => <option key={t}>{t}</option>)}</select></div>
               <div><label style={labelStyle}>H / A</label><select style={inputStyle} value={matchForm.home_away} onChange={e => setMatchForm({ ...matchForm, home_away: e.target.value })}><option value="home">👕 ホーム</option><option value="away">👕 アウェイ</option><option value="neutral">🏟️ 中立地</option></select></div>
               <div><label style={labelStyle}>会場</label><input style={inputStyle} value={matchForm.venue} onChange={e => setMatchForm({ ...matchForm, venue: e.target.value })} placeholder="例：Thong Nhat Stadium" /></div>
             </div>
@@ -1325,6 +1547,60 @@ export default function Admin() {
             <div style={{ display: 'flex', gap: '9px', justifyContent: 'flex-end' }}>
               <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd' })} onClick={() => setMatchModal(false)}>キャンセル</button>
               <button style={btn('#e8c84a', '#2a2220')} onClick={saveMatch}>{editMatch ? '保存する' : '登録する'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SEFA 順位表モーダル */}
+      {standingModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }} onClick={() => setStandingModal(false)}>
+          <div style={{ background: 'white', borderRadius: '12px', padding: '26px', width: '440px', maxWidth: '92vw', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '19px', letterSpacing: '1px', marginBottom: '16px' }}>
+              {editStanding ? '✏️ 順位表を編集' : '📊 チームを追加'}
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={labelStyle}>チーム名 *</label>
+              <input style={inputStyle} value={standingForm.team_name} onChange={e => setStandingForm({ ...standingForm, team_name: e.target.value })} placeholder="例：Saigon Japan FC" />
+            </div>
+            <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+              <div><label style={labelStyle}>試合数</label><input style={inputStyle} type="number" value={standingForm.played} onChange={e => setStandingForm({ ...standingForm, played: e.target.value })} /></div>
+              <div><label style={labelStyle}>勝</label><input style={inputStyle} type="number" value={standingForm.won} onChange={e => setStandingForm({ ...standingForm, won: e.target.value })} /></div>
+              <div><label style={labelStyle}>分</label><input style={inputStyle} type="number" value={standingForm.drawn} onChange={e => setStandingForm({ ...standingForm, drawn: e.target.value })} /></div>
+              <div><label style={labelStyle}>敗</label><input style={inputStyle} type="number" value={standingForm.lost} onChange={e => setStandingForm({ ...standingForm, lost: e.target.value })} /></div>
+              <div><label style={labelStyle}>得点</label><input style={inputStyle} type="number" value={standingForm.gf} onChange={e => setStandingForm({ ...standingForm, gf: e.target.value })} /></div>
+              <div><label style={labelStyle}>失点</label><input style={inputStyle} type="number" value={standingForm.ga} onChange={e => setStandingForm({ ...standingForm, ga: e.target.value })} /></div>
+            </div>
+            <div style={{ display: 'flex', gap: '9px', justifyContent: 'flex-end' }}>
+              <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd' })} onClick={() => setStandingModal(false)}>キャンセル</button>
+              <button style={btn('#e8c84a', '#2a2220')} onClick={saveStanding}>{editStanding ? '保存する' : '追加する'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SEFA 得点ランキングモーダル */}
+      {sefaScorerModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }} onClick={() => setSefaScorerModal(false)}>
+          <div style={{ background: 'white', borderRadius: '12px', padding: '26px', width: '400px', maxWidth: '92vw', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '19px', letterSpacing: '1px', marginBottom: '16px' }}>
+              {editSefaScorer ? '✏️ 得点者を編集' : '⚽ 選手を追加'}
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={labelStyle}>選手名 *</label>
+              <input style={inputStyle} value={sefaScorerForm.player_name} onChange={e => setSefaScorerForm({ ...sefaScorerForm, player_name: e.target.value })} placeholder="例：田中 健太" />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={labelStyle}>チーム名</label>
+              <input style={inputStyle} value={sefaScorerForm.team_name} onChange={e => setSefaScorerForm({ ...sefaScorerForm, team_name: e.target.value })} placeholder="例：Saigon Japan FC" />
+            </div>
+            <div style={{ marginBottom: '18px' }}>
+              <label style={labelStyle}>得点数</label>
+              <input style={inputStyle} type="number" value={sefaScorerForm.goals} onChange={e => setSefaScorerForm({ ...sefaScorerForm, goals: e.target.value })} />
+            </div>
+            <div style={{ display: 'flex', gap: '9px', justifyContent: 'flex-end' }}>
+              <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd' })} onClick={() => setSefaScorerModal(false)}>キャンセル</button>
+              <button style={btn('#e8c84a', '#2a2220')} onClick={saveSefaScorer}>{editSefaScorer ? '保存する' : '追加する'}</button>
             </div>
           </div>
         </div>
