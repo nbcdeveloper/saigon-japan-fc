@@ -18,7 +18,6 @@ const navItems = [
 
 const tabItemsRow1 = [
   { path: '/', icon: '⚽', label: 'ホーム' },
-  { path: '/sefa', icon: '/sefa-logo.png', label: 'SEFA' },
   { path: '/schedule', icon: '📅', label: 'スケジュール' },
   { path: '/results', icon: '🏆', label: '試合結果' },
   { path: '/members', icon: '👥', label: 'メンバー' },
@@ -26,6 +25,7 @@ const tabItemsRow1 = [
 ]
 
 const tabItemsRow2 = [
+  { path: '/sefa', icon: '/sefa-logo.png', label: 'SEFA' },
   { path: '/sponsors', icon: '🤝', label: '協賛' },
   { path: '/announcements', icon: '📢', label: '掲示板' },
   { path: '/admin', icon: '⚙️', label: '管理者画面' },
