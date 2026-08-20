@@ -50,6 +50,21 @@ export default function Members() {
     color: sortBy === val ? '#e8c84a' : '#8a7f7a',
   })
 
+  // 生年月日から年齢を自動計算（月日が未入力の場合は年のみで概算）
+  const calcAge = (m) => {
+    if (!m.birth_year) return null
+    const today = new Date()
+    let age = today.getFullYear() - m.birth_year
+    if (m.birth_month) {
+      const curM = today.getMonth() + 1
+      const curD = today.getDate()
+      const bm = m.birth_month
+      const bd = m.birth_day || 1
+      if (curM < bm || (curM === bm && curD < bd)) age--
+    }
+    return age
+  }
+
   const teamInfo = (team) => team === 'u40'
     ? { label: 'U-40', color: '#7b5ea7', bg: '#ede8f7' }
     : { label: 'O-40', color: '#2a5fa5', bg: '#dceeff' }
@@ -139,7 +154,12 @@ export default function Members() {
                           {m.jersey_away ? <span style={{ background: '#d4f4e0', color: '#1a7a40', fontSize: '11px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px' }}>#{m.jersey_away}</span> : '－'}
                         </td>
                         <td style={{ padding: '9px 12px', color: '#8a7f7a', whiteSpace: 'nowrap' }}>
-                          {m.birth_year ? `${m.birth_year}年${m.birth_month ? m.birth_month + '月' : ''}${m.birth_day ? m.birth_day + '日' : ''}` : '－'}
+                          {m.birth_year ? (
+                            <>
+                              {`${m.birth_year}年${m.birth_month ? m.birth_month + '月' : ''}${m.birth_day ? m.birth_day + '日' : ''}`}
+                              <span style={{ marginLeft: '5px', color: '#b3a89f', fontSize: '11px' }}>（{calcAge(m)}歳）</span>
+                            </>
+                          ) : '－'}
                         </td>
                         <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.joined_at ? m.joined_at.slice(0, 7).replace('-', '/') : '－'}</td>
                         <td style={{ padding: '9px 12px' }}>
@@ -186,7 +206,7 @@ export default function Members() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#8a7f7a', borderTop: '1px solid #f0ebe5', paddingTop: '8px' }}>
-                    {m.birth_year && <span>🎂 {m.birth_year}年{m.birth_month ? m.birth_month + '月' : ''}{m.birth_day ? m.birth_day + '日' : ''}</span>}
+                    {m.birth_year && <span>🎂 {m.birth_year}年{m.birth_month ? m.birth_month + '月' : ''}{m.birth_day ? m.birth_day + '日' : ''}（{calcAge(m)}歳）</span>}
                     {m.joined_at && <span>📅 入部 {m.joined_at.slice(0, 7).replace('-', '/')}</span>}
                   </div>
                 </div>
