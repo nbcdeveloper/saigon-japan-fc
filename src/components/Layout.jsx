@@ -4,10 +4,10 @@ import { supabase } from '../supabase'
 
 const navItems = [
   { path: '/', icon: '⚽', label: 'ダッシュボード' },
+  { path: '/sefa', icon: '/sefa-logo.png', label: 'SEFA S11' },
   { path: '/schedule', icon: '📅', label: 'スケジュール' },
   { path: '/results', icon: '🏆', label: '試合結果' },
   { path: '/members', icon: '👥', label: 'メンバー' },
-  { path: '/attendance', icon: '📊', label: '出席率' },
   { path: '/announcements', icon: '📢', label: '掲示板' },
   { path: '/sponsors', icon: '🤝', label: '協賛' },
   { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
@@ -18,6 +18,7 @@ const navItems = [
 
 const tabItemsRow1 = [
   { path: '/', icon: '⚽', label: 'ホーム' },
+  { path: '/sefa', icon: '/sefa-logo.png', label: 'SEFA' },
   { path: '/schedule', icon: '📅', label: 'スケジュール' },
   { path: '/results', icon: '🏆', label: '試合結果' },
   { path: '/members', icon: '👥', label: 'メンバー' },
@@ -25,11 +26,25 @@ const tabItemsRow1 = [
 ]
 
 const tabItemsRow2 = [
-  { path: '/announcements', icon: '📢', label: '掲示板' },
-  { path: '/attendance', icon: '📊', label: '出席率' },
   { path: '/sponsors', icon: '🤝', label: '協賛' },
+  { path: '/announcements', icon: '📢', label: '掲示板' },
   { path: '/admin', icon: '⚙️', label: '管理者画面' },
 ]
+
+const menuItems = [
+  { path: '/attendance', icon: '📊', label: '出席率' },
+  { path: '/rules', icon: '📜', label: '規律と方針' },
+  { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
+  { path: '/sns', icon: '📱', label: 'SNS' },
+]
+
+// アイコンが画像パス（'/'始まり）ならimg、それ以外は絵文字として表示
+const renderIcon = (icon, size) => {
+  if (typeof icon === 'string' && icon.startsWith('/')) {
+    return <img src={icon} alt="" style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }} />
+  }
+  return <span style={{ fontSize: size }}>{icon}</span>
+}
 
 export default function Layout({ session }) {
   const navigate = useNavigate()
@@ -66,7 +81,7 @@ export default function Layout({ session }) {
               borderLeft: isActive(item.path) ? '3px solid #e8c84a' : '3px solid transparent',
               fontSize: '13px', fontWeight: '500', fontFamily: "'Noto Sans JP', sans-serif"
             }}>
-              <span>{item.icon}</span><span>{item.label}</span>
+              {renderIcon(item.icon, 16)}<span>{item.label}</span>
             </div>
           ))}
         </nav>
@@ -116,7 +131,7 @@ export default function Layout({ session }) {
               color: isActive(item.path) ? '#e8c84a' : 'rgba(245,242,238,0.5)',
               fontSize: '9.5px', fontWeight: '600', gap: '3px', fontFamily: 'inherit'
             }}>
-              <span style={{ fontSize: '20px' }}>{item.icon}</span>{item.label}
+              {renderIcon(item.icon, 20)}{item.label}
             </button>
           ))}
         </div>
@@ -128,7 +143,7 @@ export default function Layout({ session }) {
               color: isActive(item.path) ? '#e8c84a' : 'rgba(245,242,238,0.5)',
               fontSize: '9.5px', fontWeight: '600', gap: '3px', fontFamily: 'inherit'
             }}>
-              <span style={{ fontSize: '20px' }}>{item.icon}</span>{item.label}
+              {renderIcon(item.icon, 20)}{item.label}
             </button>
           ))}
           <button onClick={() => setMenuOpen(!menuOpen)} style={{
@@ -146,11 +161,7 @@ export default function Layout({ session }) {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 150 }} onClick={() => setMenuOpen(false)} />
           <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#2a2220', borderRadius: '16px 16px 0 0', zIndex: 160, padding: '16px 0 130px' }}>
             <div style={{ width: '36px', height: '4px', background: 'rgba(255,255,255,0.2)', borderRadius: '99px', margin: '0 auto 16px' }} />
-            {[
-              { path: '/rules', icon: '📜', label: '規律と方針' },
-              { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
-              { path: '/sns', icon: '📱', label: 'SNS' },
-            ].map(item => (
+            {menuItems.map(item => (
               <div key={item.path} onClick={() => { navigate(item.path); setMenuOpen(false) }}
                 style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 24px', color: 'rgba(245,242,238,0.7)', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>
                 <span style={{ fontSize: '18px' }}>{item.icon}</span>{item.label}

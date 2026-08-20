@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Schedule from './pages/Schedule'
 import Results from './pages/Results'
+import Sefa from './pages/Sefa'
 import Attendance from './pages/Attendance'
 import Members from './pages/Members'
 import Announcements from './pages/Announcements'
@@ -46,6 +47,7 @@ function App() {
         <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
         <Route path="/" element={session ? <Layout session={session} /> : <Navigate to="/login" />}>
           <Route index element={<Dashboard />} />
+          <Route path="sefa" element={<Sefa />} />
           <Route path="schedule" element={<Schedule />} />
           <Route path="results" element={<Results />} />
           <Route path="attendance" element={<Attendance />} />
