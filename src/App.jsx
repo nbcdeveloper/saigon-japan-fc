@@ -12,6 +12,7 @@ import Announcements from './pages/Announcements'
 import Sponsors from './pages/Sponsors'
 import OrgChart from './pages/OrgChart'
 import Rules from './pages/Rules'
+import O40Policy from './pages/O40Policy'
 import SNS from './pages/SNS'
 import MyPage from './pages/MyPage'
 import Admin from './pages/Admin'
@@ -57,6 +58,7 @@ function App() {
           <Route path="orgchart" element={<OrgChart />} />
           <Route path="sns" element={<SNS />} />
           <Route path="rules" element={<Rules />} />
+          <Route path="o40-policy" element={<O40Policy />} />
           <Route path="mypage" element={<MyPage />} />
           <Route path="admin" element={<Admin />} />
         </Route>
