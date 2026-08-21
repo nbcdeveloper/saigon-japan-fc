@@ -490,12 +490,14 @@ export default function Admin() {
       dual_team: !!memberForm.dual_team,
     }
     if (editMember) {
-      await supabase.from('profiles').update(profileData).eq('id', editMember.id)
+      const { error: updateError } = await supabase.from('profiles').update(profileData).eq('id', editMember.id)
+      if (updateError) return alert('保存に失敗しました: ' + updateError.message)
     } else {
       if (!memberForm.email || !memberForm.password) return alert('新規追加にはメールとパスワードが必要です')
       const { data: authData, error } = await supabase.auth.admin.createUser({ email: memberForm.email, password: memberForm.password, email_confirm: true })
       if (error) return alert('ユーザー作成エラー: ' + error.message)
-      await supabase.from('profiles').insert({ ...profileData, id: authData.user.id })
+      const { error: insertError } = await supabase.from('profiles').insert({ ...profileData, id: authData.user.id })
+      if (insertError) return alert('保存に失敗しました: ' + insertError.message)
     }
     setMemberModal(false)
     fetchMembers()
@@ -504,10 +506,12 @@ export default function Admin() {
   // 退会処理／在籍への復帰（プロフィールやログインアカウントは削除せず、過去の試合結果・出席記録・部費記録などはすべて保持したまま一覧から外す）
   const toggleMemberStatus = async (m) => {
     if (m.status === 'left') {
-      await supabase.from('profiles').update({ status: 'active' }).eq('id', m.id)
+      const { error } = await supabase.from('profiles').update({ status: 'active' }).eq('id', m.id)
+      if (error) return alert('復帰処理に失敗しました: ' + error.message)
     } else {
       if (!window.confirm(`${m.name}さんを退会処理しますか？\n\n・ログインアカウントやプロフィールは削除されません\n・過去の試合結果・出席記録・部費記録などはすべて保持されます\n・メンバー一覧には表示されなくなります（管理者画面ではいつでも「在籍」に戻せます）\n・使用していた背番号は他のメンバーが選択できるようになります`)) return
-      await supabase.from('profiles').update({ status: 'left' }).eq('id', m.id)
+      const { error } = await supabase.from('profiles').update({ status: 'left' }).eq('id', m.id)
+      if (error) return alert('退会処理に失敗しました: ' + error.message)
     }
     fetchMembers()
   }
@@ -718,30 +722,30 @@ export default function Admin() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '760px' }}>
                 <thead>
-                  <tr>{[...['名前','チーム','ポジション','生年','入部','支払区分','ステータス'], ...(isTreasurerAdmin ? ['管理者権限'] : []), '操作'].map(h => (
-                    <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px', whiteSpace: 'nowrap' }}>{h}</th>
+                  <tr>{[...['名前','チーム','ポジション','生年','入部','支払区分','ステータス'], ...(isTreasurerAdmin ? ['管理者権限'] : []), '操作'].map((h, i) => (
+                    <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px', whiteSpace: 'nowrap', ...(i === 0 ? { position: 'sticky', left: 0, zIndex: 3 } : {}) }}>{h}</th>
                   ))}</tr>
                 </thead>
                 <tbody>
                   {members.map(m => (
                     <tr key={m.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
-                      <td style={{ padding: '9px 12px', fontWeight: '500', whiteSpace: 'nowrap' }}>{m.name}</td>
-                      <td style={{ padding: '9px 12px' }}>
+                      <td style={{ padding: '9px 12px', fontWeight: '500', whiteSpace: 'nowrap', position: 'sticky', left: 0, zIndex: 1, background: 'white', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}>{m.name}</td>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
                         {teamBadge(m.team)}
                         {m.dual_team && <span style={{ marginLeft: '4px', background: '#fff3cd', color: '#856404', fontSize: '10px', fontWeight: '700', padding: '1px 5px', borderRadius: '3px' }}>兼務</span>}
                       </td>
-                      <td style={{ padding: '9px 12px' }}>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
                         <span style={{ background: '#e8e0d8', color: '#2a2220', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px', marginRight: '3px' }}>{m.position1}</span>
                         {m.position2 && <span style={{ background: '#e8e0d8', color: '#2a2220', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>{m.position2}</span>}
                       </td>
-                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.birth_year ? `${m.birth_year}年${m.birth_month ? m.birth_month + '月' : ''}${m.birth_day ? m.birth_day + '日' : ''}` : '－'}</td>
-                      <td style={{ padding: '9px 12px', color: '#8a7f7a' }}>{m.joined_at ? m.joined_at.slice(0,7).replace('-','/') : '－'}</td>
-                      <td style={{ padding: '9px 12px' }}>
+                      <td style={{ padding: '9px 12px', color: '#8a7f7a', whiteSpace: 'nowrap' }}>{m.birth_year ? `${m.birth_year}年${m.birth_month ? m.birth_month + '月' : ''}${m.birth_day ? m.birth_day + '日' : ''}` : '－'}</td>
+                      <td style={{ padding: '9px 12px', color: '#8a7f7a', whiteSpace: 'nowrap' }}>{m.joined_at ? m.joined_at.slice(0,7).replace('-','/') : '－'}</td>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
                         <span style={{ background: m.dues_type === 'spot' ? '#fff3cd' : '#e8e0d8', color: m.dues_type === 'spot' ? '#856404' : '#8a7f7a', fontSize: '10.5px', fontWeight: '600', padding: '2px 6px', borderRadius: '4px' }}>
                           {m.dues_type === 'spot' ? '都度払い' : '月額払い'}
                         </span>
                       </td>
-                      <td style={{ padding: '9px 12px' }}>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
                         <span style={{ background: statusInfo(m.status).bg, color: statusInfo(m.status).color, fontSize: '11px', fontWeight: '600', padding: '2px 7px', borderRadius: '4px' }}>
                           {statusInfo(m.status).label}
                         </span>
