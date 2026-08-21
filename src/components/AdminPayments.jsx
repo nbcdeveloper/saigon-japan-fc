@@ -112,12 +112,12 @@ export default function AdminPayments({ members }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', minWidth: '900px' }}>
               <thead>
                 <tr>
-                  <th style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>名前</th>
-                  <th style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left' }}>チーム</th>
+                  <th style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', whiteSpace: 'nowrap', position: 'sticky', left: 0, zIndex: 3 }}>名前</th>
+                  <th style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>チーム</th>
                   {MONTHS.map(m => (
-                    <th key={m} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 6px', textAlign: 'center', fontSize: '11px' }}>{m}</th>
+                    <th key={m} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 6px', textAlign: 'center', fontSize: '11px', whiteSpace: 'nowrap' }}>{m}</th>
                   ))}
-                  <th style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left' }}>区分</th>
+                  <th style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>区分</th>
                 </tr>
               </thead>
               <tbody>
@@ -126,8 +126,8 @@ export default function AdminPayments({ members }) {
                   const paidCount = Object.values(memberDues).filter(d => d.paid).length
                   return (
                     <tr key={m.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
-                      <td style={{ padding: '9px 12px', fontWeight: '500', whiteSpace: 'nowrap' }}>{m.name}</td>
-                      <td style={{ padding: '9px 12px' }}>{teamBadge(m.team)}</td>
+                      <td style={{ padding: '9px 12px', fontWeight: '500', whiteSpace: 'nowrap', position: 'sticky', left: 0, zIndex: 1, background: 'white', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}>{m.name}</td>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>{teamBadge(m.team)}</td>
                       {Array.from({ length: 12 }, (_, i) => {
                         const month = i + 1
                         const dueInfo = memberDues[month]
@@ -183,8 +183,8 @@ export default function AdminPayments({ members }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr>
-                  {['名前','チーム','ホーム（白）','アウェイ（緑）','状況'].map(h => (
-                    <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px', whiteSpace: 'nowrap' }}>{h}</th>
+                  {['名前','チーム','ホーム（白）','アウェイ（緑）','状況'].map((h, i) => (
+                    <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px', whiteSpace: 'nowrap', ...(i === 0 ? { position: 'sticky', left: 0, zIndex: 3 } : {}) }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -197,9 +197,9 @@ export default function AdminPayments({ members }) {
                   const noneOk = !homeOk && !awayOk
                   return (
                     <tr key={m.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
-                      <td style={{ padding: '9px 12px', fontWeight: '500' }}>{m.name}</td>
-                      <td style={{ padding: '9px 12px' }}>{teamBadge(m.team)}</td>
-                      <td style={{ padding: '9px 12px' }}>
+                      <td style={{ padding: '9px 12px', fontWeight: '500', whiteSpace: 'nowrap', position: 'sticky', left: 0, zIndex: 1, background: 'white', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}>{m.name}</td>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>{teamBadge(m.team)}</td>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
                         <div onClick={() => toggleUniform(m.id, 'home')}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '5px 12px', borderRadius: '6px', border: `1.5px solid ${homeOk ? '#27ae60' : '#e0dbd5'}`, background: homeOk ? '#d4f4e0' : '#fafafa', fontSize: '12.5px', fontWeight: '600', color: homeOk ? '#1a7a40' : '#8a7f7a' }}>
                           {homeOk ? '✅ 徴収済' : '⬜ 未徴収'}
