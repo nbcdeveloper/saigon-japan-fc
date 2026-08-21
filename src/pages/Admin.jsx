@@ -49,7 +49,7 @@ const TimeInput = ({ value, onChange }) => (
 )
 
 export default function Admin() {
-  const [tab, setTab] = useState('members')
+  const [tab, setTab] = useState('schedule')
   const [members, setMembers] = useState([])
   const [events, setEvents] = useState([])
   const [matches, setMatches] = useState([])
