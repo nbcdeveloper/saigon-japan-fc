@@ -8,6 +8,7 @@ const navItems = [
   { path: '/schedule', icon: '📅', label: 'スケジュール' },
   { path: '/results', icon: '🏆', label: '試合結果' },
   { path: '/members', icon: '👥', label: 'メンバー' },
+  { path: '/attendance', icon: '📊', label: '出席率' },
   { path: '/announcements', icon: '📢', label: '掲示板' },
   { path: '/sponsors', icon: '🤝', label: '協賛' },
   { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
