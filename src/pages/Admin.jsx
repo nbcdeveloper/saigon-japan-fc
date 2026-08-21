@@ -18,6 +18,13 @@ const labelStyle = {
 
 const RETIRED_NUMBERS = [3, 5] // 永久欠番
 
+// ステータス表示（在籍／休止中／退会）
+const statusInfo = (status) => {
+  if (status === 'active') return { label: '在籍', bg: '#d4f4e0', color: '#1a7a40' }
+  if (status === 'left') return { label: '退会', bg: '#f0ebe5', color: '#8a7f7a' }
+  return { label: '休止中', bg: '#fff3cd', color: '#856404' }
+}
+
 // UTCではなくローカル時間（ベトナム時間）基準で「今日」の日付文字列を作る
 const todayLocalStr = () => {
   const d = new Date()
@@ -464,10 +471,11 @@ export default function Admin() {
     // 念のため保存時にも重複・永久欠番チェック（同時編集などのすり抜け対策）
     if (jerseyHome && RETIRED_NUMBERS.includes(jerseyHome)) return alert(`Home #${jerseyHome} は永久欠番のため使用できません`)
     if (jerseyAway && RETIRED_NUMBERS.includes(jerseyAway)) return alert(`Away #${jerseyAway} は永久欠番のため使用できません`)
-    if (jerseyHome && members.some(m => m.jersey_home === jerseyHome && (!editMember || m.id !== editMember.id))) {
+    // 退会済みメンバーの番号は空き扱いにする
+    if (jerseyHome && members.some(m => m.jersey_home === jerseyHome && m.status !== 'left' && (!editMember || m.id !== editMember.id))) {
       return alert(`Home #${jerseyHome} は既に他のメンバーが使用中です`)
     }
-    if (jerseyAway && members.some(m => m.jersey_away === jerseyAway && (!editMember || m.id !== editMember.id))) {
+    if (jerseyAway && members.some(m => m.jersey_away === jerseyAway && m.status !== 'left' && (!editMember || m.id !== editMember.id))) {
       return alert(`Away #${jerseyAway} は既に他のメンバーが使用中です`)
     }
     const profileData = {
@@ -490,6 +498,17 @@ export default function Admin() {
       await supabase.from('profiles').insert({ ...profileData, id: authData.user.id })
     }
     setMemberModal(false)
+    fetchMembers()
+  }
+
+  // 退会処理／在籍への復帰（プロフィールやログインアカウントは削除せず、過去の試合結果・出席記録・部費記録などはすべて保持したまま一覧から外す）
+  const toggleMemberStatus = async (m) => {
+    if (m.status === 'left') {
+      await supabase.from('profiles').update({ status: 'active' }).eq('id', m.id)
+    } else {
+      if (!window.confirm(`${m.name}さんを退会処理しますか？\n\n・ログインアカウントやプロフィールは削除されません\n・過去の試合結果・出席記録・部費記録などはすべて保持されます\n・メンバー一覧には表示されなくなります（管理者画面ではいつでも「在籍」に戻せます）\n・使用していた背番号は他のメンバーが選択できるようになります`)) return
+      await supabase.from('profiles').update({ status: 'left' }).eq('id', m.id)
+    }
     fetchMembers()
   }
 
@@ -723,8 +742,8 @@ export default function Admin() {
                         </span>
                       </td>
                       <td style={{ padding: '9px 12px' }}>
-                        <span style={{ background: m.status === 'active' ? '#d4f4e0' : '#fff3cd', color: m.status === 'active' ? '#1a7a40' : '#856404', fontSize: '11px', fontWeight: '600', padding: '2px 7px', borderRadius: '4px' }}>
-                          {m.status === 'active' ? '在籍' : '休止中'}
+                        <span style={{ background: statusInfo(m.status).bg, color: statusInfo(m.status).color, fontSize: '11px', fontWeight: '600', padding: '2px 7px', borderRadius: '4px' }}>
+                          {statusInfo(m.status).label}
                         </span>
                       </td>
                       {isTreasurerAdmin && (
@@ -739,8 +758,13 @@ export default function Admin() {
                           )}
                         </td>
                       )}
-                      <td style={{ padding: '9px 12px' }}>
-                        <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '4px 9px', fontSize: '11.5px' })} onClick={() => openEditMember(m)}>編集</button>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
+                        <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '4px 9px', fontSize: '11.5px', marginRight: '6px' })} onClick={() => openEditMember(m)}>編集</button>
+                        {m.status === 'left' ? (
+                          <button style={btn('#27ae60', 'white', { padding: '4px 9px', fontSize: '11.5px' })} onClick={() => toggleMemberStatus(m)}>🔄 復帰</button>
+                        ) : (
+                          <button style={btn('#e74c3c', 'white', { padding: '4px 9px', fontSize: '11.5px' })} onClick={() => toggleMemberStatus(m)}>🚪 退会</button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -943,7 +967,7 @@ export default function Admin() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: '9px' }}>
               {Array.from({ length: 99 }, (_, i) => i + 1).map(num => {
-                const owner = members.find(m => m.jersey_home === num)
+                const owner = members.find(m => m.jersey_home === num && m.status !== 'left')
                 const retired = RETIRED_NUMBERS.includes(num)
                 return (
                   <div key={num}
@@ -965,7 +989,7 @@ export default function Admin() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: '9px' }}>
               {Array.from({ length: 99 }, (_, i) => i + 1).map(num => {
-                const owner = members.find(m => m.jersey_away === num)
+                const owner = members.find(m => m.jersey_away === num && m.status !== 'left')
                 const retired = RETIRED_NUMBERS.includes(num)
                 return (
                   <div key={num}
@@ -1394,8 +1418,8 @@ export default function Admin() {
               <div><label style={labelStyle}>入部年月</label><input style={inputStyle} type="month" value={memberForm.joined_at?.slice(0,7) || ''} onChange={e => setMemberForm({ ...memberForm, joined_at: e.target.value + '-01' })} /></div>
               {(() => {
                 // 自分以外がすでに使用中の番号・永久欠番は選択肢から除外する
-                const homeTaken = new Set(members.filter(m => m.jersey_home && (!editMember || m.id !== editMember.id)).map(m => m.jersey_home))
-                const awayTaken = new Set(members.filter(m => m.jersey_away && (!editMember || m.id !== editMember.id)).map(m => m.jersey_away))
+                const homeTaken = new Set(members.filter(m => m.jersey_home && m.status !== 'left' && (!editMember || m.id !== editMember.id)).map(m => m.jersey_home))
+                const awayTaken = new Set(members.filter(m => m.jersey_away && m.status !== 'left' && (!editMember || m.id !== editMember.id)).map(m => m.jersey_away))
                 const allNumbers = Array.from({ length: 99 }, (_, i) => i + 1).filter(n => !RETIRED_NUMBERS.includes(n))
                 return (
                   <>
@@ -1419,7 +1443,7 @@ export default function Admin() {
                 )
               })()}
               <div><label style={labelStyle}>支払区分</label><select style={inputStyle} value={memberForm.dues_type} onChange={e => setMemberForm({ ...memberForm, dues_type: e.target.value })}><option value="monthly">月額払い</option><option value="spot">都度払い</option></select></div>
-              <div><label style={labelStyle}>ステータス</label><select style={inputStyle} value={memberForm.status} onChange={e => setMemberForm({ ...memberForm, status: e.target.value })}><option value="active">在籍</option><option value="inactive">休止中</option></select></div>
+              <div><label style={labelStyle}>ステータス</label><select style={inputStyle} value={memberForm.status} onChange={e => setMemberForm({ ...memberForm, status: e.target.value })}><option value="active">在籍</option><option value="inactive">休止中</option><option value="left">退会</option></select></div>
             </div>
             {!editMember && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px', padding: '14px', background: '#f8f5f0', borderRadius: '8px' }}>

@@ -11,7 +11,8 @@ export default function Members() {
   useEffect(() => { fetchMembers() }, [])
 
   const fetchMembers = async () => {
-    const { data } = await supabase.from('profiles').select('*').order('team').order('name')
+    // 退会済み（status='left'）のメンバーは名簿には表示しない
+    const { data } = await supabase.from('profiles').select('*').neq('status', 'left').order('team').order('name')
     if (data) setMembers(data)
     setLoading(false)
   }
