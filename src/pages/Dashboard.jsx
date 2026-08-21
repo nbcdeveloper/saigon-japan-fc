@@ -134,7 +134,8 @@ export default function Dashboard() {
         DASHBOARD
       </div>
 
-      {/* 1. 直近のスケジュール */}
+      {/* 1〜2. 直近のスケジュール／最新のお知らせ */}
+      <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '0' }}>
       <div style={card}>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
           📅 直近のスケジュール
@@ -195,6 +196,32 @@ export default function Dashboard() {
             </div>
           )
         })}
+      </div>
+
+      {/* お知らせ */}
+      <div style={card}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
+          📢 最新のお知らせ
+        </div>
+        {announcements.length === 0 && <div style={{ color: '#8a7f7a', fontSize: '13px' }}>お知らせはありません</div>}
+        {announcements.map(a => (
+          <div key={a.id} style={{
+            borderRadius: '8px', padding: '12px 16px', marginBottom: '8px',
+            borderLeft: `4px solid ${a.pinned ? '#e74c3c' : '#e8c84a'}`,
+            background: '#fafafa', boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+          }}>
+            <div style={{ fontWeight: '700', fontSize: '13px', marginBottom: '4px' }}>
+              {a.pinned && '📌 '}{a.title}
+            </div>
+            <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.5 }}>
+              {a.body.length > 60 ? a.body.slice(0, 60) + '...' : a.body}
+            </div>
+            <div style={{ fontSize: '10.5px', color: '#8a7f7a', marginTop: '6px' }}>
+              👤 {a.author_name}　📅 {new Date(a.created_at).toLocaleDateString('ja-JP')}
+            </div>
+          </div>
+        ))}
+      </div>
       </div>
 
       {/* 3〜6. 誕生日／登録メンバー／今期成績／平均年齢 */}
@@ -305,30 +332,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 2. 最新のお知らせ（一番下） */}
-      <div style={card}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
-          📢 最新のお知らせ
-        </div>
-        {announcements.length === 0 && <div style={{ color: '#8a7f7a', fontSize: '13px' }}>お知らせはありません</div>}
-        {announcements.map(a => (
-          <div key={a.id} style={{
-            borderRadius: '8px', padding: '12px 16px', marginBottom: '8px',
-            borderLeft: `4px solid ${a.pinned ? '#e74c3c' : '#e8c84a'}`,
-            background: '#fafafa', boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
-          }}>
-            <div style={{ fontWeight: '700', fontSize: '13px', marginBottom: '4px' }}>
-              {a.pinned && '📌 '}{a.title}
-            </div>
-            <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.5 }}>
-              {a.body.length > 60 ? a.body.slice(0, 60) + '...' : a.body}
-            </div>
-            <div style={{ fontSize: '10.5px', color: '#8a7f7a', marginTop: '6px' }}>
-              👤 {a.author_name}　📅 {new Date(a.created_at).toLocaleDateString('ja-JP')}
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
