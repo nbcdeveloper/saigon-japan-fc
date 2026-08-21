@@ -21,8 +21,30 @@ const ProgressBar = ({ pct, color }) => (
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
+// 生年月日から年齢を自動計算（月日が未入力の場合は年のみで概算）
+const calcAge = (m) => {
+  if (!m.birth_year) return null
+  const today = new Date()
+  let age = today.getFullYear() - m.birth_year
+  if (m.birth_month) {
+    const curM = today.getMonth() + 1
+    const curD = today.getDate()
+    const bm = m.birth_month
+    const bd = m.birth_day || 1
+    if (curM < bm || (curM === bm && curD < bd)) age--
+  }
+  return age
+}
+
+const avgAgeOf = (list) => {
+  const ages = list.map(calcAge).filter(a => a !== null)
+  if (ages.length === 0) return null
+  return Math.round((ages.reduce((s, a) => s + a, 0) / ages.length) * 10) / 10
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState({ total: 0, u40: 0, o40: 0 })
+  const [avgAge, setAvgAge] = useState({ all: null, u40: null, o40: null })
   const [events, setEvents] = useState([])
   const [announcements, setAnnouncements] = useState([])
   const [topU40, setTopU40] = useState([])
@@ -53,7 +75,7 @@ export default function Dashboard() {
   }
 
   const fetchStats = async () => {
-    const { data } = await supabase.from('profiles').select('id, name, team, status, birth_month, birth_day').eq('status', 'active')
+    const { data } = await supabase.from('profiles').select('id, name, team, status, birth_year, birth_month, birth_day').eq('status', 'active')
     if (data) {
       const currentMonth = new Date().getMonth() + 1
       setStats({
@@ -62,6 +84,11 @@ export default function Dashboard() {
         o40: data.filter(m => m.team === 'o40').length,
       })
       setBirthdayMembers(data.filter(m => m.birth_month === currentMonth).sort((a, b) => (a.birth_day || 0) - (b.birth_day || 0)))
+      setAvgAge({
+        all: avgAgeOf(data),
+        u40: avgAgeOf(data.filter(m => m.team === 'u40')),
+        o40: avgAgeOf(data.filter(m => m.team === 'o40')),
+      })
     }
   }
 
@@ -107,133 +134,71 @@ export default function Dashboard() {
         DASHBOARD
       </div>
 
-      {/* 上段：スケジュール＋お知らせ */}
-      <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '0' }}>
-        {/* スケジュール */}
-        <div style={card}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
-            📅 直近のスケジュール
-          </div>
-          {events.length === 0 && <div style={{ color: '#8a7f7a', fontSize: '13px' }}>予定はありません</div>}
-          {events.map(ev => {
-            const cat = catInfo(ev.category)
-            const d = new Date(ev.event_date)
-            const weekday = WEEKDAYS[d.getDay()]
-            const isWeekend = d.getDay() === 0 || d.getDay() === 6
-            return (
-              <div key={ev.id} style={{
-                borderRadius: '8px', padding: '13px 15px', marginBottom: '10px',
-                borderLeft: '4px solid #e8c84a', background: '#fafafa',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.07)'
-              }}>
-                {/* 日付・曜日・カテゴリー */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', lineHeight: 1, color: '#2a2220' }}>{d.getDate()}</span>
-                    <span style={{ fontSize: '12px', color: '#8a7f7a' }}>{d.toLocaleString('en', { month: 'short' }).toUpperCase()}</span>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: isWeekend ? (d.getDay() === 0 ? '#e74c3c' : '#2a5fa5') : '#2a2220' }}>
-                      （{weekday}）
-                    </span>
-                  </div>
-                  <span style={{ background: cat.bg, color: cat.color, fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>
-                    {cat.label}
+      {/* 1. 直近のスケジュール */}
+      <div style={card}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
+          📅 直近のスケジュール
+        </div>
+        {events.length === 0 && <div style={{ color: '#8a7f7a', fontSize: '13px' }}>予定はありません</div>}
+        {events.map(ev => {
+          const cat = catInfo(ev.category)
+          const d = new Date(ev.event_date)
+          const weekday = WEEKDAYS[d.getDay()]
+          const isWeekend = d.getDay() === 0 || d.getDay() === 6
+          return (
+            <div key={ev.id} style={{
+              borderRadius: '8px', padding: '13px 15px', marginBottom: '10px',
+              borderLeft: '4px solid #e8c84a', background: '#fafafa',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.07)'
+            }}>
+              {/* 日付・曜日・カテゴリー */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', lineHeight: 1, color: '#2a2220' }}>{d.getDate()}</span>
+                  <span style={{ fontSize: '12px', color: '#8a7f7a' }}>{d.toLocaleString('en', { month: 'short' }).toUpperCase()}</span>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: isWeekend ? (d.getDay() === 0 ? '#e74c3c' : '#2a5fa5') : '#2a2220' }}>
+                    （{weekday}）
                   </span>
                 </div>
-
-                {/* タイトル */}
-                <div style={{ fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>{ev.title}</div>
-
-                {/* 詳細情報 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {(ev.kickoff_time || ev.end_time) && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#555' }}>
-                      <span style={{ fontSize: '14px' }}>⏰</span>
-                      <span style={{ fontWeight: '600' }}>
-                        {ev.kickoff_time ? ev.kickoff_time.slice(0,5) : ''}
-                        {ev.end_time ? ` 〜 ${ev.end_time.slice(0,5)}` : ''}
-                      </span>
-                    </div>
-                  )}
-                  {ev.venue && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#555' }}>
-                      <span style={{ fontSize: '14px' }}>📍</span>
-                      <span>{ev.venue}</span>
-                    </div>
-                  )}
-                  {ev.meetup_place && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#8a7f7a' }}>
-                      <span style={{ fontSize: '13px' }}>🚩</span>
-                      <span>集合: {ev.meetup_place}{ev.meetup_time ? ` ${ev.meetup_time.slice(0,5)}` : ''}</span>
-                    </div>
-                  )}
-                </div>
+                <span style={{ background: cat.bg, color: cat.color, fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>
+                  {cat.label}
+                </span>
               </div>
-            )
-          })}
-        </div>
 
-        {/* お知らせ */}
-        <div style={card}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
-            📢 最新のお知らせ
-          </div>
-          {announcements.length === 0 && <div style={{ color: '#8a7f7a', fontSize: '13px' }}>お知らせはありません</div>}
-          {announcements.map(a => (
-            <div key={a.id} style={{
-              borderRadius: '8px', padding: '12px 16px', marginBottom: '8px',
-              borderLeft: `4px solid ${a.pinned ? '#e74c3c' : '#e8c84a'}`,
-              background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
-            }}>
-              <div style={{ fontWeight: '700', fontSize: '13px', marginBottom: '4px' }}>
-                {a.pinned && '📌 '}{a.title}
-              </div>
-              <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.5 }}>
-                {a.body.length > 60 ? a.body.slice(0, 60) + '...' : a.body}
-              </div>
-              <div style={{ fontSize: '10.5px', color: '#8a7f7a', marginTop: '6px' }}>
-                👤 {a.author_name}　📅 {new Date(a.created_at).toLocaleDateString('ja-JP')}
+              {/* タイトル */}
+              <div style={{ fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>{ev.title}</div>
+
+              {/* 詳細情報 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {(ev.kickoff_time || ev.end_time) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#555' }}>
+                    <span style={{ fontSize: '14px' }}>⏰</span>
+                    <span style={{ fontWeight: '600' }}>
+                      {ev.kickoff_time ? ev.kickoff_time.slice(0,5) : ''}
+                      {ev.end_time ? ` 〜 ${ev.end_time.slice(0,5)}` : ''}
+                    </span>
+                  </div>
+                )}
+                {ev.venue && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#555' }}>
+                    <span style={{ fontSize: '14px' }}>📍</span>
+                    <span>{ev.venue}</span>
+                  </div>
+                )}
+                {ev.meetup_place && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#8a7f7a' }}>
+                    <span style={{ fontSize: '13px' }}>🚩</span>
+                    <span>集合: {ev.meetup_place}{ev.meetup_time ? ` ${ev.meetup_time.slice(0,5)}` : ''}</span>
+                  </div>
+                )}
               </div>
             </div>
-          ))}
-        </div>
+          )
+        })}
       </div>
 
-      {/* 中段：出席率 */}
-      <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
-        <div style={card}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1px', color: '#2a2220', marginBottom: '12px' }}>
-            <span style={{ color: '#7b5ea7' }}>■</span> U-40 出席率 トップ5
-          </div>
-          {topU40.length === 0 ? <div style={{ color: '#8a7f7a', fontSize: '12px' }}>データがありません</div> :
-            topU40.map((m, i) => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < topU40.length - 1 ? '1px solid #f0ebe5' : 'none', fontSize: '13px' }}>
-                <div style={{ width: '22px', fontSize: '12px', flexShrink: 0 }}>{medals[i]}</div>
-                <div style={{ width: '110px', fontWeight: '500', flexShrink: 0, fontSize: '12.5px' }}>{m.name}</div>
-                <ProgressBar pct={m.rate} color={pctColor(m.rate)} />
-                <div style={{ width: '40px', textAlign: 'right', fontWeight: '700', fontSize: '12px', color: pctColor(m.rate), flexShrink: 0 }}>{m.rate}%</div>
-              </div>
-            ))
-          }
-        </div>
-        <div style={card}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1px', color: '#2a2220', marginBottom: '12px' }}>
-            <span style={{ color: '#2a5fa5' }}>■</span> O-40 出席率 トップ5
-          </div>
-          {topO40.length === 0 ? <div style={{ color: '#8a7f7a', fontSize: '12px' }}>データがありません</div> :
-            topO40.map((m, i) => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < topO40.length - 1 ? '1px solid #f0ebe5' : 'none', fontSize: '13px' }}>
-                <div style={{ width: '22px', fontSize: '12px', flexShrink: 0 }}>{medals[i]}</div>
-                <div style={{ width: '110px', fontWeight: '500', flexShrink: 0, fontSize: '12.5px' }}>{m.name}</div>
-                <ProgressBar pct={m.rate} color={pctColor(m.rate)} />
-                <div style={{ width: '40px', textAlign: 'right', fontWeight: '700', fontSize: '12px', color: pctColor(m.rate), flexShrink: 0 }}>{m.rate}%</div>
-              </div>
-            ))
-          }
-        </div>
-      </div>
-
-      {/* 下段：統計 */}
-      <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
+      {/* 3〜6. 誕生日／登録メンバー／今期成績／平均年齢 */}
+      <div className="grid-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '18px' }}>
         {/* 今月の誕生日 */}
         <div style={statBox('#e74c3c')}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '1px', color: '#e74c3c', marginBottom: '8px' }}>
@@ -288,6 +253,81 @@ export default function Dashboard() {
             </>
           )}
         </div>
+
+        {/* 平均年齢（新設） */}
+        <div style={statBox('#e8a020')}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '38px', lineHeight: 1, color: '#2a2220' }}>
+            {avgAge.all !== null ? avgAge.all : '－'}<span style={{ fontSize: '16px', marginLeft: '2px' }}>歳</span>
+          </div>
+          <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '2px', marginBottom: '8px' }}>平均年齢</div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ background: '#ede8f7', color: '#7b5ea7', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>
+              U-40: {avgAge.u40 !== null ? `${avgAge.u40}歳` : '－'}
+            </span>
+            <span style={{ background: '#dceeff', color: '#2a5fa5', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>
+              O-40: {avgAge.o40 !== null ? `${avgAge.o40}歳` : '－'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 7〜8. 出席率トップ5 */}
+      <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '18px' }}>
+        <div style={card}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1px', color: '#2a2220', marginBottom: '12px' }}>
+            <span style={{ color: '#7b5ea7' }}>■</span> U-40 出席率 トップ5
+          </div>
+          {topU40.length === 0 ? <div style={{ color: '#8a7f7a', fontSize: '12px' }}>データがありません</div> :
+            topU40.map((m, i) => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < topU40.length - 1 ? '1px solid #f0ebe5' : 'none', fontSize: '13px' }}>
+                <div style={{ width: '22px', fontSize: '12px', flexShrink: 0 }}>{medals[i]}</div>
+                <div style={{ width: '110px', fontWeight: '500', flexShrink: 0, fontSize: '12.5px' }}>{m.name}</div>
+                <ProgressBar pct={m.rate} color={pctColor(m.rate)} />
+                <div style={{ width: '40px', textAlign: 'right', fontWeight: '700', fontSize: '12px', color: pctColor(m.rate), flexShrink: 0 }}>{m.rate}%</div>
+              </div>
+            ))
+          }
+        </div>
+        <div style={card}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1px', color: '#2a2220', marginBottom: '12px' }}>
+            <span style={{ color: '#2a5fa5' }}>■</span> O-40 出席率 トップ5
+          </div>
+          {topO40.length === 0 ? <div style={{ color: '#8a7f7a', fontSize: '12px' }}>データがありません</div> :
+            topO40.map((m, i) => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < topO40.length - 1 ? '1px solid #f0ebe5' : 'none', fontSize: '13px' }}>
+                <div style={{ width: '22px', fontSize: '12px', flexShrink: 0 }}>{medals[i]}</div>
+                <div style={{ width: '110px', fontWeight: '500', flexShrink: 0, fontSize: '12.5px' }}>{m.name}</div>
+                <ProgressBar pct={m.rate} color={pctColor(m.rate)} />
+                <div style={{ width: '40px', textAlign: 'right', fontWeight: '700', fontSize: '12px', color: pctColor(m.rate), flexShrink: 0 }}>{m.rate}%</div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      {/* 2. 最新のお知らせ（一番下） */}
+      <div style={card}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '12px' }}>
+          📢 最新のお知らせ
+        </div>
+        {announcements.length === 0 && <div style={{ color: '#8a7f7a', fontSize: '13px' }}>お知らせはありません</div>}
+        {announcements.map(a => (
+          <div key={a.id} style={{
+            borderRadius: '8px', padding: '12px 16px', marginBottom: '8px',
+            borderLeft: `4px solid ${a.pinned ? '#e74c3c' : '#e8c84a'}`,
+            background: '#fafafa', boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+          }}>
+            <div style={{ fontWeight: '700', fontSize: '13px', marginBottom: '4px' }}>
+              {a.pinned && '📌 '}{a.title}
+            </div>
+            <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.5 }}>
+              {a.body.length > 60 ? a.body.slice(0, 60) + '...' : a.body}
+            </div>
+            <div style={{ fontSize: '10.5px', color: '#8a7f7a', marginTop: '6px' }}>
+              👤 {a.author_name}　📅 {new Date(a.created_at).toLocaleDateString('ja-JP')}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
