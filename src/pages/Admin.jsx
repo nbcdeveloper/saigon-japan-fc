@@ -509,7 +509,9 @@ export default function Admin() {
       } catch (e) {
         return alert('ユーザー作成エラー: サーバーに接続できませんでした（' + e.message + '）')
       }
-      const { error: insertError } = await supabase.from('profiles').insert({ ...profileData, id: result.id })
+      // 認証ユーザー作成時にDB側のトリガーでprofiles行が自動生成されるケースがあるため、
+      // insertではなくupsertで（あれば更新・なければ新規作成）確実に反映する
+      const { error: insertError } = await supabase.from('profiles').upsert({ ...profileData, id: result.id })
       if (insertError) return alert('保存に失敗しました: ' + insertError.message)
     }
     setMemberModal(false)

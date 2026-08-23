@@ -53,7 +53,32 @@ export default async function handler(req, res) {
   })
 
   if (createError) {
-    return res.status(400).json({ error: createError.message })
+    const msg = (createError.message || '').toLowerCase()
+    const alreadyExists = msg.includes('already been registered') || msg.includes('already registered') || msg.includes('already exists')
+
+    if (!alreadyExists) {
+      return res.status(400).json({ error: createError.message })
+    }
+
+    // このメールアドレスの認証ユーザーは既に存在している（例：以前の操作でプロフィール保存だけ失敗した等）。
+    // 新規作成ではなく、既存ユーザーを探して再利用する（プロフィール側は呼び出し元でupsertされる）
+    let existingId = null
+    for (let page = 1; page <= 20 && !existingId; page++) {
+      const { data: listData, error: listError } = await admin.auth.admin.listUsers({ page, perPage: 200 })
+      if (listError || !listData?.users?.length) break
+      const match = listData.users.find(u => (u.email || '').toLowerCase() === email.toLowerCase())
+      if (match) { existingId = match.id; break }
+      if (listData.users.length < 200) break // 最終ページまで確認済み
+    }
+
+    if (!existingId) {
+      return res.status(400).json({ error: 'このメールアドレスは既に登録済みですが、該当ユーザーが見つかりませんでした。Supabaseダッシュボードで確認してください。' })
+    }
+
+    // フォームで入力されたパスワードに合わせておく
+    await admin.auth.admin.updateUserById(existingId, { password })
+
+    return res.status(200).json({ id: existingId, reused: true })
   }
 
   return res.status(200).json({ id: newUser.user.id })
