@@ -494,9 +494,22 @@ export default function Admin() {
       if (updateError) return alert('保存に失敗しました: ' + updateError.message)
     } else {
       if (!memberForm.email || !memberForm.password) return alert('新規追加にはメールとパスワードが必要です')
-      const { data: authData, error } = await supabase.auth.admin.createUser({ email: memberForm.email, password: memberForm.password, email_confirm: true })
-      if (error) return alert('ユーザー作成エラー: ' + error.message)
-      const { error: insertError } = await supabase.from('profiles').insert({ ...profileData, id: authData.user.id })
+      // ユーザー作成はブラウザから直接できない（anonキーには管理者権限がないため）ので、
+      // サーバー側（/api/create-member）経由でservice_roleキーを使って作成する
+      const { data: { session } } = await supabase.auth.getSession()
+      let result
+      try {
+        const res = await fetch('/api/create-member', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ email: memberForm.email, password: memberForm.password }),
+        })
+        result = await res.json()
+        if (!res.ok) return alert('ユーザー作成エラー: ' + (result.error || `HTTP ${res.status}`))
+      } catch (e) {
+        return alert('ユーザー作成エラー: サーバーに接続できませんでした（' + e.message + '）')
+      }
+      const { error: insertError } = await supabase.from('profiles').insert({ ...profileData, id: result.id })
       if (insertError) return alert('保存に失敗しました: ' + insertError.message)
     }
     setMemberModal(false)
