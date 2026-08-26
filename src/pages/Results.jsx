@@ -94,11 +94,13 @@ export default function Results() {
   }
 
   const MatchList = ({ team }) => {
+    const [showAll, setShowAll] = useState(false)
     const teamMatches = filtered.filter(m => m.team === team)
     if (teamMatches.length === 0) return <div style={{ color: '#8a7f7a', fontSize: '13px', marginBottom: '20px' }}>試合記録がありません</div>
+    const visibleMatches = showAll ? teamMatches : teamMatches.slice(0, 5)
     return (
       <div style={{ marginBottom: '20px' }}>
-        {teamMatches.map(m => {
+        {visibleMatches.map(m => {
           const matchGoals = goals.filter(g => g.match_id === m.id)
           const scorerNames = matchGoals.map(g => {
             const member = members.find(mem => mem.id === g.member_id)
@@ -132,6 +134,16 @@ export default function Results() {
             </div>
           )
         })}
+        {teamMatches.length > 5 && (
+          <div style={{ textAlign: 'center' }}>
+            <button
+              style={{ background: 'transparent', color: team === 'u40' ? '#7b5ea7' : '#2a5fa5', border: `1.5px solid ${team === 'u40' ? '#7b5ea7' : '#2a5fa5'}`, borderRadius: '20px', padding: '6px 16px', fontSize: '12.5px', fontWeight: '700', cursor: 'pointer' }}
+              onClick={() => setShowAll(v => !v)}
+            >
+              {showAll ? '▲ 過去の試合を閉じる' : `▼ 過去の試合を表示（あと${teamMatches.length - 5}件）`}
+            </button>
+          </div>
+        )}
       </div>
     )
   }

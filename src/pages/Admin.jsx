@@ -69,6 +69,7 @@ export default function Admin() {
   // Event modal
   const [eventModal, setEventModal] = useState(false)
   const [editEvent, setEditEvent] = useState(null)
+  const [showAllEvents, setShowAllEvents] = useState(false)
   const [eventForm, setEventForm] = useState({
     title: '', category: 'u40', event_type: '', event_date: '',
     venue: '', kickoff_time: '', end_time: '', meetup_time: '', meetup_place: '', deadline: '', notes: ''
@@ -158,7 +159,7 @@ export default function Admin() {
   }
 
   const fetchEvents = async () => {
-    const { data } = await supabase.from('events').select('*').order('event_date')
+    const { data } = await supabase.from('events').select('*').order('event_date', { ascending: false })
     if (data) setEvents(data)
   }
 
@@ -811,7 +812,7 @@ export default function Admin() {
                 </thead>
                 <tbody>
                   {events.length === 0 && <tr><td colSpan={9} style={{ padding: '20px', textAlign: 'center', color: '#8a7f7a' }}>イベントはありません</td></tr>}
-                  {events.map(ev => (
+                  {(showAllEvents ? events : events.slice(0, 10)).map(ev => (
                     <tr key={ev.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
                       <td style={{ padding: '9px 12px', color: '#8a7f7a', whiteSpace: 'nowrap' }}>{ev.event_date}</td>
                       <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>{catLabel(ev.category)}</td>
@@ -832,6 +833,13 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
+            {events.length > 10 && (
+              <div style={{ textAlign: 'center', marginTop: '14px' }}>
+                <button style={btn('transparent', '#2a5fa5', { border: '1.5px solid #2a5fa5', padding: '6px 16px', fontSize: '12.5px' })} onClick={() => setShowAllEvents(v => !v)}>
+                  {showAllEvents ? '▲ 過去のイベントを閉じる' : `▼ 過去のイベントを表示（あと${events.length - 10}件）`}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
