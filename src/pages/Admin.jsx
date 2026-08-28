@@ -105,6 +105,12 @@ export default function Admin() {
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoUploadError, setLogoUploadError] = useState('')
 
+  // ユニフォームサイズ管理（背番号×カラーごとの現物サイズ。スプレッドシート管理の代替）
+  const [jerseySizes, setJerseySizes] = useState([])
+  const [sizeModal, setSizeModal] = useState(false)
+  const [editSize, setEditSize] = useState(null)
+  const [sizeForm, setSizeForm] = useState({ number: '', color: 'home', size: 'M' })
+
   // 会計（出納帳）
   const [isTreasurer, setIsTreasurer] = useState(false)
   const [isTreasurerAdmin, setIsTreasurerAdmin] = useState(false)
@@ -139,6 +145,7 @@ export default function Admin() {
       fetchEvents()
       fetchMatches()
       fetchSponsors()
+      fetchJerseySizes()
       fetchMasters()
       fetchOrgChart()
       fetchSefaStandings()
@@ -201,6 +208,43 @@ export default function Admin() {
     await supabase.from('sponsors').delete().eq('id', id)
     fetchSponsors()
   }
+
+  // ユニフォームサイズ管理
+  const fetchJerseySizes = async () => {
+    const { data } = await supabase.from('jersey_sizes').select('*').order('number').order('color')
+    if (data) setJerseySizes(data)
+  }
+
+  const openAddSize = () => {
+    setEditSize(null)
+    setSizeForm({ number: '', color: 'home', size: 'M' })
+    setSizeModal(true)
+  }
+
+  const openEditSize = (s) => {
+    setEditSize(s)
+    setSizeForm({ number: s.number, color: s.color, size: s.size })
+    setSizeModal(true)
+  }
+
+  const saveSize = async () => {
+    if (!sizeForm.number) return alert('背番号は必須です')
+    const payload = { number: parseInt(sizeForm.number), color: sizeForm.color, size: sizeForm.size }
+    const { error } = editSize
+      ? await supabase.from('jersey_sizes').update(payload).eq('id', editSize.id)
+      : await supabase.from('jersey_sizes').upsert(payload, { onConflict: 'number,color' })
+    if (error) return alert('保存に失敗しました：' + error.message)
+    setSizeModal(false)
+    fetchJerseySizes()
+  }
+
+  const deleteSize = async (id) => {
+    if (!window.confirm('削除しますか？')) return
+    await supabase.from('jersey_sizes').delete().eq('id', id)
+    fetchJerseySizes()
+  }
+
+  const sizeFor = (num, color) => jerseySizes.find(s => s.number === num && s.color === color)?.size
 
   const uploadSponsorLogo = async (file) => {
     if (!file) return
@@ -1002,6 +1046,9 @@ export default function Admin() {
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', lineHeight: 1, color: retired ? '#e8c84a' : (owner ? '#555' : '#c8bfb8') }}>{num}</div>
                     <div style={{ fontSize: '8.5px', color: retired ? 'rgba(255,255,255,0.55)' : '#8a7f7a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{retired ? '－' : (owner ? owner.name : '－')}</div>
                     <div style={{ fontSize: '7.5px', fontWeight: '700', marginTop: '2px', color: retired ? '#e8c84a' : (owner ? '#888' : '#c8bfb8') }}>{retired ? '永久欠番' : (owner ? '使用中' : 'OPEN')}</div>
+                    {!retired && sizeFor(num, 'home') && (
+                      <div style={{ fontSize: '7.5px', fontWeight: '700', marginTop: '1px', color: '#2a5fa5' }}>{sizeFor(num, 'home')}</div>
+                    )}
                   </div>
                 )
               })}
@@ -1024,6 +1071,9 @@ export default function Admin() {
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', lineHeight: 1, color: retired ? '#e8c84a' : (owner ? '#1a7a40' : '#c8bfb8') }}>{num}</div>
                     <div style={{ fontSize: '8.5px', color: retired ? 'rgba(255,255,255,0.55)' : '#8a7f7a', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{retired ? '－' : (owner ? owner.name : '－')}</div>
                     <div style={{ fontSize: '7.5px', fontWeight: '700', marginTop: '2px', color: retired ? '#e8c84a' : (owner ? '#1a7a40' : '#c8bfb8') }}>{retired ? '永久欠番' : (owner ? '使用中' : 'OPEN')}</div>
+                    {!retired && sizeFor(num, 'away') && (
+                      <div style={{ fontSize: '7.5px', fontWeight: '700', marginTop: '1px', color: '#2a5fa5' }}>{sizeFor(num, 'away')}</div>
+                    )}
                   </div>
                 )
               })}
@@ -1049,6 +1099,46 @@ export default function Admin() {
                       <td style={{ padding: '9px 12px' }}>{m.jersey_away ? <span style={{ background: '#d4f4e0', color: '#1a7a40', fontSize: '12px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>#{m.jersey_away}</span> : '－'}</td>
                       <td style={{ padding: '9px 12px' }}>
                         <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '4px 9px', fontSize: '11.5px' })} onClick={() => openEditMember(m)}>変更</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ユニフォームサイズ管理 */}
+          <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginTop: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px' }}>📏 ユニフォームサイズ管理</div>
+              <button style={btn('#2a2220', '#e8c84a', { padding: '4px 10px', fontSize: '11.5px' })} onClick={openAddSize}>＋ サイズ登録</button>
+            </div>
+            <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginBottom: '12px' }}>同じ背番号でも、ホーム（白）とアウェイ（緑）で現物のサイズが異なる場合はそれぞれ登録してください。</div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '420px' }}>
+                <thead>
+                  <tr>{['背番号','カラー','サイズ','操作'].map(h => (
+                    <th key={h} style={{ background: '#2a2220', color: '#e8c84a', padding: '9px 12px', textAlign: 'left', fontSize: '12px', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '1px', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {jerseySizes.length === 0 && (
+                    <tr><td colSpan={4} style={{ padding: '14px 12px', color: '#8a7f7a', fontSize: '12.5px' }}>登録されているサイズはありません</td></tr>
+                  )}
+                  {jerseySizes.map(s => (
+                    <tr key={s.id} style={{ borderBottom: '1px solid #f0ebe5' }}>
+                      <td style={{ padding: '9px 12px', fontWeight: '700' }}>#{s.number}</td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <span style={{ background: s.color === 'home' ? '#f0f0f0' : '#d4f4e0', color: s.color === 'home' ? '#555' : '#1a7a40', fontSize: '11.5px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>
+                          {s.color === 'home' ? 'ホーム（白）' : 'アウェイ（緑）'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '9px 12px', fontWeight: '600' }}>{s.size}</td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd', padding: '3px 8px', fontSize: '11px' })} onClick={() => openEditSize(s)}>編集</button>
+                          <button style={btn('#e74c3c', 'white', { padding: '3px 8px', fontSize: '11px' })} onClick={() => deleteSize(s.id)}>削除</button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1652,6 +1742,38 @@ export default function Admin() {
             <div style={{ display: 'flex', gap: '9px', justifyContent: 'flex-end' }}>
               <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd' })} onClick={() => setSefaScorerModal(false)}>キャンセル</button>
               <button style={btn('#e8c84a', '#2a2220')} onClick={saveSefaScorer}>{editSefaScorer ? '保存する' : '追加する'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ユニフォームサイズ登録モーダル */}
+      {sizeModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }} onClick={() => setSizeModal(false)}>
+          <div style={{ background: 'white', borderRadius: '12px', padding: '26px', width: '360px', maxWidth: '92vw', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '19px', letterSpacing: '1px', marginBottom: '16px' }}>
+              {editSize ? '✏️ サイズを編集' : '📏 サイズを登録'}
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={labelStyle}>背番号 *</label>
+              <input style={inputStyle} type="number" min="1" max="99" value={sizeForm.number} onChange={e => setSizeForm({ ...sizeForm, number: e.target.value })} placeholder="例：7" />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={labelStyle}>カラー *</label>
+              <select style={inputStyle} value={sizeForm.color} onChange={e => setSizeForm({ ...sizeForm, color: e.target.value })}>
+                <option value="home">ホーム（白）</option>
+                <option value="away">アウェイ（緑）</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: '18px' }}>
+              <label style={labelStyle}>サイズ *</label>
+              <select style={inputStyle} value={sizeForm.size} onChange={e => setSizeForm({ ...sizeForm, size: e.target.value })}>
+                {['M', 'L', '2L', '3L'].map(sz => <option key={sz} value={sz}>{sz}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '9px', justifyContent: 'flex-end' }}>
+              <button style={btn('transparent', '#2a2220', { border: '1.5px solid #ddd' })} onClick={() => setSizeModal(false)}>キャンセル</button>
+              <button style={btn('#e8c84a', '#2a2220')} onClick={saveSize}>{editSize ? '保存する' : '追加する'}</button>
             </div>
           </div>
         </div>
