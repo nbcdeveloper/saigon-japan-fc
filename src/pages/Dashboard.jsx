@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+
+// UTCではなくローカル時間（ベトナム時間）基準で「今日」の日付文字列を作る
+const todayLocalStr = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 const card = {
   background: 'white', borderRadius: '10px', padding: '18px 22px',
@@ -43,6 +50,7 @@ const avgAgeOf = (list) => {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [stats, setStats] = useState({ total: 0, u40: 0, o40: 0 })
   const [avgAge, setAvgAge] = useState({ all: null, u40: null, o40: null })
   const [events, setEvents] = useState([])
@@ -51,6 +59,7 @@ export default function Dashboard() {
   const [topO40, setTopO40] = useState([])
   const [birthdayMembers, setBirthdayMembers] = useState([])
   const [matches, setMatches] = useState([])
+  const [unansweredCount, setUnansweredCount] = useState(0)
 
   useEffect(() => {
     fetchStats()
@@ -58,7 +67,23 @@ export default function Dashboard() {
     fetchAnnouncements()
     fetchAttendance()
     fetchMatches()
+    fetchMyUnanswered()
   }, [])
+
+  const fetchMyUnanswered = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: profile } = await supabase.from('profiles').select('team, dual_team').eq('id', user.id).single()
+    if (!profile) return
+    const myCategories = profile.dual_team ? ['u40', 'o40', 'joint'] : [profile.team, 'joint']
+    const today = todayLocalStr()
+    const { data: myEvents } = await supabase.from('events').select('id').gte('event_date', today).in('category', myCategories)
+    if (!myEvents || myEvents.length === 0) { setUnansweredCount(0); return }
+    const eventIds = myEvents.map(e => e.id)
+    const { data: myAttendance } = await supabase.from('attendance').select('event_id').eq('member_id', user.id).in('event_id', eventIds)
+    const answeredIds = new Set((myAttendance || []).map(a => a.event_id))
+    setUnansweredCount(eventIds.filter(id => !answeredIds.has(id)).length)
+  }
 
   const fetchMatches = async () => {
     const { data } = await supabase.from('matches').select('team, score_us, score_them')
@@ -130,6 +155,20 @@ export default function Dashboard() {
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
+      {unansweredCount > 0 && (
+        <div onClick={() => navigate('/schedule')} style={{
+          display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer',
+          background: '#fdecea', border: '1.5px solid #e74c3c', borderRadius: '10px',
+          padding: '13px 18px', marginBottom: '18px'
+        }}>
+          <span style={{ fontSize: '18px', flexShrink: 0 }}>⚠️</span>
+          <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#c0392b' }}>
+            出欠未回答のものが{unansweredCount}件あります。
+          </span>
+          <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#c0392b', fontWeight: '600', flexShrink: 0 }}>確認する ›</span>
+        </div>
+      )}
+
       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '2px', color: '#2a2220', marginBottom: '20px' }}>
         DASHBOARD
       </div>
