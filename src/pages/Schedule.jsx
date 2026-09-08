@@ -45,7 +45,7 @@ export default function Schedule() {
     const [{ data: upcoming }, { data: past }, { data: allMembers }] = await Promise.all([
       supabase.from('events').select('*').gte('event_date', today).order('event_date'),
       supabase.from('events').select('*').lt('event_date', today).order('event_date', { ascending: false }).limit(10),
-      supabase.from('profiles').select('id, name, team').eq('status', 'active'),
+      supabase.from('profiles').select('id, name, team, dual_team').eq('status', 'active'),
     ])
     if (upcoming) setUpcomingEvents(upcoming)
     if (past) setPastEvents(past)
@@ -53,7 +53,7 @@ export default function Schedule() {
     const allIds = [...(upcoming || []), ...(past || [])].map(e => e.id)
     if (allIds.length > 0) {
       fetchMyAttendance(uid, allIds)
-      fetchAttendanceData(allIds, allMembers || [])
+      fetchAttendanceData(allIds, allMembers || [], [...(upcoming || []), ...(past || [])])
     }
     setLoading(false)
   }
@@ -83,9 +83,15 @@ export default function Schedule() {
     }
   }
 
-  const fetchAttendanceData = async (eventIds, allMembers) => {
+  // メンバーがそのイベントのカテゴリの対象者かどうか（U-40イベント→U-40メンバー、O-40イベント→O-40メンバー、
+  // 兼務メンバーはどちらのイベントにも対象、合同イベントは全員対象）
+  const belongsToEvent = (member, category) => category === 'joint' || member.team === category || !!member.dual_team
+
+  const fetchAttendanceData = async (eventIds, allMembers, allEvents) => {
     const { data } = await supabase.from('attendance').select('*').in('event_id', eventIds)
     if (data) {
+      const eventsById = {}
+      allEvents.forEach(e => { eventsById[e.id] = e })
       const counts = {}
       const names = {}
       eventIds.forEach(id => {
@@ -93,12 +99,13 @@ export default function Schedule() {
         names[id] = { present: [], absent: [], late: [], early_leave: [], undecided: [] }
       })
       data.forEach(a => {
+        const ev = eventsById[a.event_id]
+        if (!ev) return
+        const member = allMembers.find(m => m.id === a.member_id)
+        if (!member || !belongsToEvent(member, ev.category)) return
         if (counts[a.event_id] && a.status in counts[a.event_id]) {
           counts[a.event_id][a.status]++
-          const member = allMembers.find(m => m.id === a.member_id)
-          if (member) {
-            names[a.event_id][a.status].push({ name: member.name, comment: a.comment || '' })
-          }
+          names[a.event_id][a.status].push({ name: member.name, comment: a.comment || '' })
         }
       })
       setAttendanceCounts(counts)
@@ -114,9 +121,10 @@ export default function Schedule() {
     } else {
       await supabase.from('attendance').insert({ event_id: modal.id, member_id: userId, status, comment })
     }
-    const allIds = [...new Set([...upcomingEvents, ...pastEvents, ...calendarEvents].map(e => e.id))]
+    const allEvts = [...upcomingEvents, ...pastEvents, ...calendarEvents]
+    const allIds = [...new Set(allEvts.map(e => e.id))]
     fetchMyAttendance(userId, allIds)
-    fetchAttendanceData(allIds, members)
+    fetchAttendanceData(allIds, members, allEvts)
     setModal(null)
     setComment('')
     setStatus('present')
@@ -152,8 +160,8 @@ export default function Schedule() {
     const names = attendanceNames[ev.id] || {}
     const totalResponded = (counts.present || 0) + (counts.absent || 0) + (counts.late || 0) + (counts.early_leave || 0) + (counts.undecided || 0)
 
-    // 未回答メンバー（そのイベントのカテゴリに所属するメンバー）
-    const targetMembers = members.filter(m => ev.category === 'joint' || m.team === ev.category)
+    // 未回答メンバー（そのイベントのカテゴリに所属するメンバー。兼務メンバーはU-40/O-40どちらにも含む）
+    const targetMembers = members.filter(m => belongsToEvent(m, ev.category))
     const respondedIds = Object.values(names).flat().map(n => n.name)
     const noAnswerCount = targetMembers.length - totalResponded
 
