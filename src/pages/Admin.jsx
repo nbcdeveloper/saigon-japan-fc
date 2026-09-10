@@ -934,7 +934,7 @@ export default function Admin() {
       {tab === 'sefa' && (
         <div>
           <div style={{ fontSize: '12.5px', color: '#8a7f7a', marginBottom: '18px', lineHeight: 1.6 }}>
-            SEFA公式発表の最新の順位表・得点ランキングを、ここで手入力して公開ページに反映します。自チームの試合結果はいつも通り「🏆 試合結果」タブから登録してください（種別を「リーグ戦」にすると、SEFAページの「結果」欄に自動で表示されます）。
+            SEFA公式発表の最新の順位表・得点ランキングを、ここで手入力して公開ページに反映します。自チームの試合結果はいつも通り「🏆 試合結果」タブから登録してください（種別を「SEFA 11S」にすると、SEFAページの「結果」欄に自動で表示されます）。
           </div>
 
           {/* 順位表管理 */}
@@ -1643,7 +1643,7 @@ export default function Admin() {
               <div><label style={labelStyle}>チーム</label><select style={inputStyle} value={matchForm.team} onChange={e => setMatchForm({ ...matchForm, team: e.target.value })}><option value="u40">U-40</option><option value="o40">O-40</option></select></div>
               <div><label style={labelStyle}>日付 *</label><input style={inputStyle} type="date" value={matchForm.match_date} onChange={e => setMatchForm({ ...matchForm, match_date: e.target.value })} /></div>
               <div><label style={labelStyle}>相手チーム *</label><input style={inputStyle} value={matchForm.opponent} onChange={e => setMatchForm({ ...matchForm, opponent: e.target.value })} placeholder="例：ハノイ日本人FC" /></div>
-              <div><label style={labelStyle}>種別</label><select style={inputStyle} value={matchForm.match_type} onChange={e => setMatchForm({ ...matchForm, match_type: e.target.value })}>{['公式戦','リーグ戦','フレンドリー','カップ戦','遠征'].map(t => <option key={t}>{t}</option>)}</select></div>
+              <div><label style={labelStyle}>種別</label><select style={inputStyle} value={matchForm.match_type} onChange={e => setMatchForm({ ...matchForm, match_type: e.target.value })}>{['公式戦','リーグ戦','SEFA 11S','フレンドリー','カップ戦','遠征'].map(t => <option key={t}>{t}</option>)}</select></div>
               <div><label style={labelStyle}>H / A</label><select style={inputStyle} value={matchForm.home_away} onChange={e => setMatchForm({ ...matchForm, home_away: e.target.value })}><option value="home">👕 ホーム</option><option value="away">👕 アウェイ</option><option value="neutral">🏟️ 中立地</option></select></div>
               <div><label style={labelStyle}>会場</label><input style={inputStyle} value={matchForm.venue} onChange={e => setMatchForm({ ...matchForm, venue: e.target.value })} placeholder="例：Thong Nhat Stadium" /></div>
             </div>
