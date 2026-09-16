@@ -14,6 +14,7 @@ import Sponsors from './pages/Sponsors'
 import OrgChart from './pages/OrgChart'
 import Rules from './pages/Rules'
 import O40Policy from './pages/O40Policy'
+import U40Policy from './pages/U40Policy'
 import SNS from './pages/SNS'
 import MyPage from './pages/MyPage'
 import Admin from './pages/Admin'
@@ -61,6 +62,7 @@ function App() {
           <Route path="sns" element={<SNS />} />
           <Route path="rules" element={<Rules />} />
           <Route path="o40-policy" element={<O40Policy />} />
+          <Route path="u40-policy" element={<U40Policy />} />
           <Route path="mypage" element={<MyPage />} />
           <Route path="admin" element={<Admin />} />
         </Route>

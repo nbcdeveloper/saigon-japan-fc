@@ -13,6 +13,7 @@ const navItems = [
   { path: '/sponsors', icon: '🤝', label: '協賛' },
   { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
   { path: '/o40-policy', icon: '🧭', label: 'O-40活動方針' },
+  { path: '/u40-policy', icon: '🎯', label: 'U-40活動方針' },
   { path: '/sns', icon: '📱', label: 'SNS' },
   { path: '/rules', icon: '📜', label: '規律と方針' },
   { path: '/admin', icon: '⚙️', label: '管理者設定' },
@@ -37,6 +38,7 @@ const menuItems = [
   { path: '/attendance', icon: '📊', label: '出席率' },
   { path: '/rules', icon: '📜', label: '規律と方針' },
   { path: '/o40-policy', icon: '🧭', label: 'O-40活動方針' },
+  { path: '/u40-policy', icon: '🎯', label: 'U-40活動方針' },
   { path: '/orgchart', icon: '🧑‍🤝‍🧑', label: '体制図' },
   { path: '/sns', icon: '📱', label: 'SNS' },
 ]
