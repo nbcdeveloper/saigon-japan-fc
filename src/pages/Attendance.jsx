@@ -15,7 +15,7 @@ export default function Attendance() {
 
   const fetchAll = async () => {
     const [{ data: m }, { data: e }, { data: a }] = await Promise.all([
-      supabase.from('profiles').select('id, name, team, status').eq('status', 'active').order('team').order('name'),
+      supabase.from('profiles').select('id, name, team, status, dual_team').eq('status', 'active').order('team').order('name'),
       supabase.from('events').select('id, category, event_type, event_date'),
       supabase.from('attendance').select('*'),
     ])
@@ -31,15 +31,17 @@ export default function Attendance() {
     return true
   })
 
-  const calcRate = (memberId) => {
-    const memberEvents = filteredEvents.filter(e => filter === 'all' || e.category === filter || e.category === 'joint')
+  // その人自身のチーム（＋兼務メンバーなら両チーム、合同イベントは常に含む）を分母にする。
+  // 「全員」タブで見ているときも、他チームのイベント数を分母に含めてしまわないようにするための修正（2026-09-17）。
+  const calcRate = (member) => {
+    const memberEvents = filteredEvents.filter(e => e.category === 'joint' || e.category === member.team || member.dual_team)
     if (memberEvents.length === 0) return { rate: 0, present: 0, total: 0 }
-    const present = attendance.filter(a => a.member_id === memberId && memberEvents.map(e => e.id).includes(a.event_id) && a.status === 'present').length
+    const present = attendance.filter(a => a.member_id === member.id && memberEvents.map(e => e.id).includes(a.event_id) && a.status === 'present').length
     return { rate: Math.round((present / memberEvents.length) * 100), present, total: memberEvents.length }
   }
 
   const filteredMembers = members.filter(m => filter === 'all' || m.team === filter)
-  const membersWithRate = filteredMembers.map(m => ({ ...m, ...calcRate(m.id) })).sort((a, b) => b.rate - a.rate)
+  const membersWithRate = filteredMembers.map(m => ({ ...m, ...calcRate(m) })).sort((a, b) => b.rate - a.rate)
   const u40Members = membersWithRate.filter(m => m.team === 'u40')
   const o40Members = membersWithRate.filter(m => m.team === 'o40')
 
