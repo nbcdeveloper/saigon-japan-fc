@@ -115,6 +115,13 @@ export default function Schedule() {
 
   const handleAttend = async () => {
     if (!modal || !userId) return
+    // 対象カテゴリ外のイベントには登録できないようガード（U-40イベント→U-40メンバーのみ、O-40イベント→O-40メンバーのみ、
+    // 兼務メンバー・合同イベントは対象。EventCard側でボタン自体を非表示にしているが、念のため二重チェック）
+    const myProfile = members.find(m => m.id === userId)
+    if (!myProfile || !belongsToEvent(myProfile, modal.category)) {
+      setModal(null)
+      return
+    }
     const existing = attending[modal.id]
     if (existing) {
       await supabase.from('attendance').update({ status, comment }).eq('id', existing.id)
@@ -167,6 +174,10 @@ export default function Schedule() {
 
     const isExpanded = expandedEvents[ev.id]
 
+    // ログイン中の本人がこのイベントのカテゴリの対象者かどうか（対象外なら出欠登録ボタン自体を表示しない）
+    const myProfile = members.find(m => m.id === userId)
+    const isEligible = !!myProfile && belongsToEvent(myProfile, ev.category)
+
     return (
       <div style={{
         background: isPast ? '#fafafa' : 'white', borderRadius: '10px', padding: '16px 18px',
@@ -216,9 +227,10 @@ export default function Schedule() {
             </div>
           </div>
 
-          {/* 出欠ボタン */}
+          {/* 出欠ボタン（対象カテゴリのメンバーのみ表示。U-40イベント→U-40メンバーのみ／O-40イベント→O-40メンバーのみ／
+              兼務メンバー→両方対象／合同イベント→全員対象） */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
-            {!isPast && (att ? (
+            {isEligible && !isPast && (att ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                 <span style={{ fontSize: '11px', color: '#27ae60', fontWeight: '600' }}>{statusLabel(att.status)}</span>
                 <button onClick={() => { setModal(ev); setStatus(att.status); setComment(att.comment || '') }}
@@ -228,7 +240,7 @@ export default function Schedule() {
               <button onClick={() => { setModal(ev); setStatus('present'); setComment('') }}
                 style={{ padding: '6px 12px', background: '#e8c84a', color: '#2a2220', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>出欠登録</button>
             ))}
-            {isPast && att && <span style={{ fontSize: '11px', color: '#8a7f7a' }}>{statusLabel(att.status)}</span>}
+            {isEligible && isPast && att && <span style={{ fontSize: '11px', color: '#8a7f7a' }}>{statusLabel(att.status)}</span>}
           </div>
         </div>
 
