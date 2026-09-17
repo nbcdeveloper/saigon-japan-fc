@@ -31,10 +31,11 @@ export default function Attendance() {
     return true
   })
 
-  // その人自身のチーム（＋兼務メンバーなら両チーム、合同イベントは常に含む）を分母にする。
+  // その人自身のメインカテゴリー（team列）のイベント＋合同イベントを分母にする。
+  // 兼務（dual_team）でも「両チーム分」は数えず、あくまで本人のメインチームのイベント数のみを対象とする（2026-09-17再修正、芦田さんの指示による）。
   // 「全員」タブで見ているときも、他チームのイベント数を分母に含めてしまわないようにするための修正（2026-09-17）。
   const calcRate = (member) => {
-    const memberEvents = filteredEvents.filter(e => e.category === 'joint' || e.category === member.team || member.dual_team)
+    const memberEvents = filteredEvents.filter(e => e.category === 'joint' || e.category === member.team)
     if (memberEvents.length === 0) return { rate: 0, present: 0, total: 0 }
     const present = attendance.filter(a => a.member_id === member.id && memberEvents.map(e => e.id).includes(a.event_id) && a.status === 'present').length
     return { rate: Math.round((present / memberEvents.length) * 100), present, total: memberEvents.length }
