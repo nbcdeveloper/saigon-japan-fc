@@ -46,6 +46,9 @@ export default function Attendance() {
   const o40Members = membersWithRate.filter(m => m.team === 'o40')
 
   const totalEvents = filteredEvents.filter(e => filter === 'all' || e.category === filter || e.category === 'joint').length
+  // 「全員」タブでの「対象イベント数」表示用（U-40/O-40それぞれの分母をそのまま見せる。合同イベントは両方に含む）
+  const u40EventCount = filteredEvents.filter(e => e.category === 'joint' || e.category === 'u40').length
+  const o40EventCount = filteredEvents.filter(e => e.category === 'joint' || e.category === 'o40').length
   const avgRate = (list) => list.length === 0 ? 0 : Math.round(list.reduce((s, m) => s + m.rate, 0) / list.length)
 
   const pctColor = (r) => r >= 70 ? '#27ae60' : r >= 50 ? '#f39c12' : '#e74c3c'
@@ -101,8 +104,25 @@ export default function Attendance() {
       {loading ? <div style={{ color: '#8a7f7a', fontSize: '13px' }}>読み込み中...</div> : (
         <>
           <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '20px' }}>
+            <div style={{ background: 'white', borderRadius: '10px', padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', borderTop: '3px solid #e8c84a' }}>
+              {filter === 'all' ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: '#7b5ea7', lineHeight: 1 }}>{u40EventCount}</div>
+                    <div style={{ fontSize: '11px', color: '#8a7f7a', marginRight: '4px' }}>U-40</div>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: '#2a5fa5', lineHeight: 1 }}>{o40EventCount}</div>
+                    <div style={{ fontSize: '11px', color: '#8a7f7a' }}>O-40</div>
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>対象イベント数（合同含む）</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '36px', color: '#e8c84a', lineHeight: 1 }}>{totalEvents}</div>
+                  <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginTop: '3px' }}>対象イベント数</div>
+                </>
+              )}
+            </div>
             {[
-              [totalEvents, '対象イベント数', '#e8c84a'],
               [membersWithRate.filter(m => m.rate >= 70).length, '出席率70%以上', '#27ae60'],
               [membersWithRate.filter(m => m.rate < 50).length, '出席率50%未満', '#e74c3c'],
             ].map(([val, label, color], i) => (
