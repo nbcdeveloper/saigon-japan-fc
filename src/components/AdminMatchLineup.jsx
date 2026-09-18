@@ -68,7 +68,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
   const [saving, setSaving] = useState(false)
 
   const [lineupId, setLineupId] = useState(null)
-  const [kit, setKit] = useState('home')
+  const kit = 'home' // ホーム/アウェイの切替機能は廃止（常にホーム表示）
   const [subInterval, setSubInterval] = useState(20)
   const [formationFirst, setFormationFirst] = useState('4-2-3-1')
   const [formationSecond, setFormationSecond] = useState('4-2-3-1')
@@ -107,7 +107,6 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
     const { data: lineupRow } = await supabase.from('match_lineups').select('*').eq('event_id', evId).eq('team', tm).maybeSingle()
     if (lineupRow) {
       setLineupId(lineupRow.id)
-      setKit(lineupRow.kit)
       setSubInterval(lineupRow.sub_interval_minutes)
       setFormationFirst(lineupRow.formation_first)
       setFormationSecond(lineupRow.formation_second)
@@ -124,7 +123,6 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
       setSlots(bySlot)
     } else {
       setLineupId(null)
-      setKit('home')
       setSubInterval(20)
       setFormationFirst('4-2-3-1')
       setFormationSecond('4-2-3-1')
@@ -178,6 +176,17 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
       return (a.name || '').localeCompare(b.name || '')
     })
   const candidateLabel = (m) => `${m.name}${m.position1 ? `｜${m.position1}` : ''}${m.jersey_home ? ` #${m.jersey_home}` : ''}`
+  // GK/DF/MF/FWの区切りごとに空欄行を挟んで見やすくする
+  const candidateOptions = []
+  let prevGroup = null
+  candidates.forEach(m => {
+    const group = POSITION_SORT_ORDER[m.position1] ?? 4
+    if (prevGroup !== null && group !== prevGroup) {
+      candidateOptions.push({ sep: true, key: `sep-${group}-${m.id}` })
+    }
+    candidateOptions.push({ sep: false, member: m })
+    prevGroup = group
+  })
 
   const accent = team === 'u40' ? '#7b5ea7' : '#2a5fa5'
   const formation = half === 'first' ? formationFirst : formationSecond
@@ -275,13 +284,6 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
               </div>
             </div>
             <div>
-              <div style={labelStyle}>ユニフォーム（背番号は常にホーム番号を表示）</div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <div style={tabPillStyle(kit === 'home', accent)} onClick={() => setKit('home')}>ホーム（白）</div>
-                <div style={tabPillStyle(kit === 'away', accent)} onClick={() => setKit('away')}>アウェイ（緑）</div>
-              </div>
-            </div>
-            <div>
               <div style={labelStyle}>交代タイミング基準（10分刻みで個別調整も可）</div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {[10, 20, 30].map(n => (
@@ -308,7 +310,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
             </div>
 
             <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 6, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <img src="/logo.jpg" alt="SJFC" style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e8c84a', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))' }} />
+              <img src="/logo.jpg" alt="SJFC" style={{ width: '76px', height: '76px', borderRadius: '50%', objectFit: 'cover', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))' }} />
               <div style={{ marginTop: '4px', fontFamily: "'Bebas Neue', sans-serif", fontSize: '23px', letterSpacing: '1.5px', color: '#ffffff', textShadow: '0 1px 3px rgba(0,0,0,0.6)', lineHeight: 1 }}>{team === 'u40' ? 'U-40' : 'O-40'}</div>
               <div style={{ fontSize: '14px', fontWeight: 800, color: '#fef3d0', textShadow: '0 1px 2px rgba(0,0,0,0.55)', lineHeight: 1.3, marginTop: '1px' }}>{half === 'first' ? '前半' : '後半'}</div>
             </div>
@@ -352,11 +354,15 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
                 <div style={{ width: '34px', fontSize: '11px', fontWeight: '700', color: '#8a7f7a', flexShrink: 0 }}>{(POSITION_LABELS[formation] || POSITION_LABELS['4-2-3-1'])[i]}</div>
                 <select style={{ ...inputStyle, flex: 1, minWidth: '140px' }} value={s.member_id} onChange={e => updateSlot(i, { member_id: e.target.value })}>
                   <option value="">未定</option>
-                  {candidates.map(m => <option key={m.id} value={m.id}>{candidateLabel(m)}</option>)}
+                  {candidateOptions.map(o => o.sep
+                    ? <option key={o.key} disabled>{' '}</option>
+                    : <option key={o.member.id} value={o.member.id}>{candidateLabel(o.member)}</option>)}
                 </select>
                 <select style={{ ...inputStyle, width: '170px', flexShrink: 0 }} value={s.sub_member_id} onChange={e => updateSlot(i, { sub_member_id: e.target.value, sub_minute: e.target.value ? s.sub_minute : '' })}>
                   <option value="">交代なし</option>
-                  {candidates.map(m => <option key={m.id} value={m.id}>{candidateLabel(m)}</option>)}
+                  {candidateOptions.map(o => o.sep
+                    ? <option key={o.key} disabled>{' '}</option>
+                    : <option key={o.member.id} value={o.member.id}>{candidateLabel(o.member)}</option>)}
                 </select>
                 {s.sub_member_id && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
