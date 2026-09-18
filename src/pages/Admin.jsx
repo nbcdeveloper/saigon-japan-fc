@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import AdminPayments from '../components/AdminPayments'
+import AdminMatchLineup from '../components/AdminMatchLineup'
 
 const btn = (bg, color, extra = {}) => ({
   padding: '7px 14px', background: bg, color, border: 'none',
@@ -114,6 +115,8 @@ export default function Admin() {
   // 会計（出納帳）
   const [isTreasurer, setIsTreasurer] = useState(false)
   const [isTreasurerAdmin, setIsTreasurerAdmin] = useState(false)
+  const [isLineupEditorU40, setIsLineupEditorU40] = useState(false)
+  const [isLineupEditorO40, setIsLineupEditorO40] = useState(false)
   const [currentUserId, setCurrentUserId] = useState(null)
   const [wallets, setWallets] = useState([])
   const [transactions, setTransactions] = useState([])
@@ -138,7 +141,7 @@ export default function Admin() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
     setCurrentUserId(user.id)
-    const { data } = await supabase.from('profiles').select('role, is_treasurer').eq('id', user.id).single()
+    const { data } = await supabase.from('profiles').select('role, is_treasurer, lineup_editor_u40, lineup_editor_o40').eq('id', user.id).single()
     if (data?.role === 'admin') {
       setIsAdmin(true)
       fetchMembers()
@@ -156,6 +159,8 @@ export default function Admin() {
       fetchWallets()
       fetchTransactions()
     }
+    if (data?.lineup_editor_u40) setIsLineupEditorU40(true)
+    if (data?.lineup_editor_o40) setIsLineupEditorO40(true)
     if (user.email === 'vespa9304@gmail.com') setIsTreasurerAdmin(true)
     setLoading(false)
   }
@@ -489,6 +494,12 @@ export default function Admin() {
     fetchMembers()
   }
 
+  const toggleLineupEditor = async (memberId, team, newVal) => {
+    const col = team === 'u40' ? 'lineup_editor_u40' : 'lineup_editor_o40'
+    await supabase.from('profiles').update({ [col]: newVal }).eq('id', memberId)
+    fetchMembers()
+  }
+
   // 管理者権限の付与・解除（芦田のみ操作可）
   const toggleAdminRole = async (memberId, makeAdmin) => {
     if (!window.confirm(makeAdmin ? 'この人を管理者にしますか？' : 'この人の管理者権限を外しますか？（会計担当権限も同時に外れます）')) return
@@ -716,6 +727,7 @@ export default function Admin() {
     ['sponsors', '🤝 協賛'],
     ['orgchart', '🧑‍🤝‍🧑 体制図'],
     ['master', '⚙️ マスタ'],
+    ...((isLineupEditorU40 || isLineupEditorO40) ? [['lineup', '🎽 試合メンバー']] : []),
     ...(isTreasurer ? [['accounting', '💰 会計']] : []),
   ]
 
@@ -1016,6 +1028,40 @@ export default function Admin() {
 
       {/* 部費管理 */}
       {tab === 'payments' && <AdminPayments members={members} />}
+
+      {/* 試合メンバー編成（U-40担当／O-40担当のみ表示） */}
+      {tab === 'lineup' && (
+        <div>
+          {isTreasurerAdmin && (
+            <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: '20px', border: '1.5px solid #e8c84a' }}>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#2a2220', marginBottom: '4px' }}>🔑 試合メンバー編成者の管理</div>
+              <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginBottom: '12px' }}>
+                U-40担当／O-40担当それぞれの試合メンバー編集権限を付与・解除できます（対象は既に管理者権限を持つメンバー。会計担当と同じ運用です）
+              </div>
+              {members.filter(m => m.role === 'admin').map(m => (
+                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0ebe5', fontSize: '13px', flexWrap: 'wrap', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{m.name}</span>
+                    {teamBadge(m.team)}
+                    {m.lineup_editor_u40 && <span style={{ background: '#ede8f7', color: '#7b5ea7', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>U-40編成担当</span>}
+                    {m.lineup_editor_o40 && <span style={{ background: '#dceeff', color: '#2a5fa5', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>O-40編成担当</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button style={btn(m.lineup_editor_u40 ? '#e74c3c' : '#e8c84a', m.lineup_editor_u40 ? 'white' : '#2a2220', { padding: '4px 10px', fontSize: '11.5px' })} onClick={() => toggleLineupEditor(m.id, 'u40', !m.lineup_editor_u40)}>
+                      {m.lineup_editor_u40 ? 'U-40権限を外す' : 'U-40権限を付与'}
+                    </button>
+                    <button style={btn(m.lineup_editor_o40 ? '#e74c3c' : '#e8c84a', m.lineup_editor_o40 ? 'white' : '#2a2220', { padding: '4px 10px', fontSize: '11.5px' })} onClick={() => toggleLineupEditor(m.id, 'o40', !m.lineup_editor_o40)}>
+                      {m.lineup_editor_o40 ? 'O-40権限を外す' : 'O-40権限を付与'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {members.filter(m => m.role === 'admin').length === 0 && <div style={{ color: '#8a7f7a', fontSize: '12px' }}>管理者権限を持つメンバーがいません</div>}
+            </div>
+          )}
+          <AdminMatchLineup members={members} canU40={isLineupEditorU40} canO40={isLineupEditorO40} />
+        </div>
+      )}
 
       {/* 背番号管理 */}
       {tab === 'jersey' && (
