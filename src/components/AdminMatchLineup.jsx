@@ -12,8 +12,14 @@ const FORMATIONS = {
   '3-2-3-2': [{ label: 'FW', idx: [9, 10] }, { label: 'MF', idx: [4, 7, 8] }, { label: 'MF', idx: [5, 6] }, { label: 'DF', idx: [1, 2, 3] }],
 }
 const FORMATION_KEYS = Object.keys(FORMATIONS)
-// 選手選択フォームで使う固定スロット表示ラベル（4-2-3-1を基準にした11枠の並び。実際のピッチ表示はハーフごとに選んだフォーメーションで並び替わる）
-const SLOT_LABELS = ['GK', 'DF', 'DF', 'DF', 'DF', 'MF', 'MF', 'MF', 'MF', 'MF', 'FW']
+// 選手選択フォームで使うポジションラベル（フォーメーションごとに、そのスロット(idx)が実際に何のポジションになるかを表示）
+const POSITION_LABELS = {
+  '4-2-3-1': { 0: 'GK', 1: 'LDF', 2: 'CB', 3: 'CB', 4: 'RDF', 5: 'DMF', 6: 'DMF', 7: 'LMF', 8: 'OMF', 9: 'RMF', 10: 'CF' },
+  '4-2-2-2': { 0: 'GK', 1: 'LDF', 2: 'CB', 3: 'CB', 4: 'RDF', 5: 'DMF', 6: 'DMF', 7: 'LMF', 8: 'RMF', 9: 'CF', 10: 'CF' },
+  '3-2-3-2': { 0: 'GK', 1: 'LDF', 2: 'CB', 3: 'RDF', 4: 'LMF', 5: 'DMF', 6: 'DMF', 7: 'OMF', 8: 'RMF', 9: 'CF', 10: 'CF' },
+}
+// 選手選択欄の並び順（メインポジション基準。GK→DF→MF→FWの順）
+const POSITION_SORT_ORDER = { GK: 0, DF: 1, MF: 2, FW: 3 }
 
 // 試合ではないイベント種別（Admin.jsxの試合結果タブと同じ定義）
 const NON_MATCH_EVENT_TYPES = ['ゴルフコンペ', 'トレーニング', 'ミーティング', '送別会／歓迎会']
@@ -162,9 +168,16 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
   }
 
   // 候補選手：自チームのメンバー＋兼務メンバー（Schedule.jsxのbelongsToEventと同じ考え方）
+  // 表示順はメインポジション（position1）基準でGK→DF→MF→FWの順、同ポジション内は名前順
   const candidates = members
     .filter(m => m.status !== 'left' && (m.team === team || m.dual_team))
-    .sort((a, b) => (a.team === team ? 0 : 1) - (b.team === team ? 0 : 1) || (a.name || '').localeCompare(b.name || ''))
+    .sort((a, b) => {
+      const pa = POSITION_SORT_ORDER[a.position1] ?? 4
+      const pb = POSITION_SORT_ORDER[b.position1] ?? 4
+      if (pa !== pb) return pa - pb
+      return (a.name || '').localeCompare(b.name || '')
+    })
+  const candidateLabel = (m) => `${m.name}${m.position1 ? `｜${m.position1}` : ''}${m.jersey_home ? ` #${m.jersey_home}` : ''}`
 
   const accent = team === 'u40' ? '#7b5ea7' : '#2a5fa5'
   const formation = half === 'first' ? formationFirst : formationSecond
@@ -194,23 +207,22 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
   const pitchRows = rowsDef.map(row => ({ label: row.label, players: row.idx.map(buildPlayer) }))
   const gk = buildPlayer(0)
 
-  const JerseyIcon = ({ p, size = 48 }) => (
+  const JerseyIcon = ({ p, size = 58 }) => (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       {p.filled ? (
         <>
           <img src={KIT_IMG} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }} />
           {p.isAway && <div style={maskOverlayStyle} />}
-          <div style={numberBadgeStyle(p.numberColor, 15)}>{p.number}</div>
+          <div style={numberBadgeStyle(p.numberColor, 18)}>{p.number}</div>
         </>
       ) : (
-        <div style={{ width: '100%', height: '100%', borderRadius: '50%', border: '2px dashed rgba(255,255,255,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.75)', fontSize: 18, fontWeight: 900 }}>?</div>
+        <div style={{ width: '100%', height: '100%', borderRadius: '50%', border: '2px dashed rgba(255,255,255,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.75)', fontSize: 20, fontWeight: 900 }}>?</div>
       )}
       {p.hasSub && (
         <div style={{ position: 'absolute', right: -16, bottom: -8, width: Math.round(size * 0.62), height: Math.round(size * 0.62), filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.4))' }}>
           <img src={KIT_IMG} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }} />
           {p.isAway && <div style={maskOverlayStyle} />}
-          <div style={numberBadgeStyle(p.numberColor, 13)}>{p.subNumber}</div>
-          <div style={{ position: 'absolute', left: -4, top: -4, transform: 'translate(-50%,-50%)', background: '#2a2220', color: '#e8c84a', fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 6, whiteSpace: 'nowrap', zIndex: 3 }}>{p.timeLabel}</div>
+          <div style={numberBadgeStyle(p.numberColor, 14)}>{p.subNumber}</div>
         </div>
       )}
     </div>
@@ -296,11 +308,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
             </div>
 
             <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 6, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <svg width="38" height="38" viewBox="0 0 40 40" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))' }}>
-                <path d="M20 3 L35 8 L35 20 C35 30 28 36 20 38 C12 36 5 30 5 20 L5 8 Z" fill="none" stroke="#e8c84a" strokeWidth="2" />
-                <text x="20" y="18" textAnchor="middle" fontSize="9" fontWeight="900" fill="#e8c84a" fontFamily="'Bebas Neue', sans-serif" letterSpacing="0.5">SJFC</text>
-                <text x="20" y="29" textAnchor="middle" fontSize="6.5" fontWeight="700" fill="#ffffff" fontFamily="'Noto Sans JP', sans-serif">SAIGON</text>
-              </svg>
+              <img src="/logo.jpg" alt="SJFC" style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e8c84a', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))' }} />
               <div style={{ marginTop: '4px', fontFamily: "'Bebas Neue', sans-serif", fontSize: '23px', letterSpacing: '1.5px', color: '#ffffff', textShadow: '0 1px 3px rgba(0,0,0,0.6)', lineHeight: 1 }}>{team === 'u40' ? 'U-40' : 'O-40'}</div>
               <div style={{ fontSize: '14px', fontWeight: 800, color: '#fef3d0', textShadow: '0 1px 2px rgba(0,0,0,0.55)', lineHeight: 1.3, marginTop: '1px' }}>{half === 'first' ? '前半' : '後半'}</div>
             </div>
@@ -310,9 +318,9 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
                 {row.players.map(p => (
                   <div key={p.idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <JerseyIcon p={p} />
-                    <div style={{ marginTop: '4px', fontSize: '12px', color: '#ffffff', fontWeight: 900, textAlign: 'center', lineHeight: 1.15, textShadow: '0 1px 3px rgba(0,0,0,0.55)', maxWidth: '76px' }}>{p.name}</div>
+                    <div style={{ marginTop: '4px', fontSize: '13px', color: '#ffffff', fontWeight: 900, textAlign: 'center', lineHeight: 1.15, textShadow: '0 1px 3px rgba(0,0,0,0.55)', maxWidth: '80px' }}>{p.name}</div>
                     {p.hasSub && (
-                      <div style={{ fontSize: '13px', color: '#ffe45e', textAlign: 'center', fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.75)', marginTop: '2px' }}>→ {p.subName}</div>
+                      <div style={{ fontSize: '13px', color: '#ffe45e', textAlign: 'center', fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.75)', marginTop: '2px' }}>{p.timeLabel} → {p.subName}</div>
                     )}
                   </div>
                 ))}
@@ -322,7 +330,10 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
             <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 4px 2px', position: 'relative' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <JerseyIcon p={gk} />
-                <div style={{ marginTop: '4px', fontSize: '12px', color: '#ffffff', fontWeight: 900, textAlign: 'center', lineHeight: 1.15, textShadow: '0 1px 3px rgba(0,0,0,0.55)' }}>{gk.name}</div>
+                <div style={{ marginTop: '4px', fontSize: '13px', color: '#ffffff', fontWeight: 900, textAlign: 'center', lineHeight: 1.15, textShadow: '0 1px 3px rgba(0,0,0,0.55)' }}>{gk.name}</div>
+                {gk.hasSub && (
+                  <div style={{ fontSize: '13px', color: '#ffe45e', textAlign: 'center', fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.75)', marginTop: '2px' }}>{gk.timeLabel} → {gk.subName}</div>
+                )}
               </div>
             </div>
           </div>
@@ -338,14 +349,14 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
             </div>
             {slots.map((s, i) => (
               <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f0ebe5', flexWrap: 'wrap' }}>
-                <div style={{ width: '30px', fontSize: '11px', fontWeight: '700', color: '#8a7f7a', flexShrink: 0 }}>{SLOT_LABELS[i]}</div>
+                <div style={{ width: '34px', fontSize: '11px', fontWeight: '700', color: '#8a7f7a', flexShrink: 0 }}>{(POSITION_LABELS[formation] || POSITION_LABELS['4-2-3-1'])[i]}</div>
                 <select style={{ ...inputStyle, flex: 1, minWidth: '140px' }} value={s.member_id} onChange={e => updateSlot(i, { member_id: e.target.value })}>
                   <option value="">未定</option>
-                  {candidates.map(m => <option key={m.id} value={m.id}>{m.name}{m.jersey_home ? ` #${m.jersey_home}` : ''}</option>)}
+                  {candidates.map(m => <option key={m.id} value={m.id}>{candidateLabel(m)}</option>)}
                 </select>
-                <select style={{ ...inputStyle, width: '150px', flexShrink: 0 }} value={s.sub_member_id} onChange={e => updateSlot(i, { sub_member_id: e.target.value, sub_minute: e.target.value ? s.sub_minute : '' })}>
+                <select style={{ ...inputStyle, width: '170px', flexShrink: 0 }} value={s.sub_member_id} onChange={e => updateSlot(i, { sub_member_id: e.target.value, sub_minute: e.target.value ? s.sub_minute : '' })}>
                   <option value="">交代なし</option>
-                  {candidates.map(m => <option key={m.id} value={m.id}>{m.name}{m.jersey_home ? ` #${m.jersey_home}` : ''}</option>)}
+                  {candidates.map(m => <option key={m.id} value={m.id}>{candidateLabel(m)}</option>)}
                 </select>
                 {s.sub_member_id && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
