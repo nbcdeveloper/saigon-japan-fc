@@ -73,9 +73,11 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
   const [formationFirst, setFormationFirst] = useState('4-2-3-1')
   const [formationSecond, setFormationSecond] = useState('4-2-3-1')
   const [slots, setSlots] = useState(emptySlots())
+  const [attendanceMap, setAttendanceMap] = useState({}) // member_id -> status（対象試合の出欠）
 
   useEffect(() => { fetchEvents() }, [])
   useEffect(() => { if (eventId) loadLineup(eventId, team) }, [eventId, team])
+  useEffect(() => { if (eventId) fetchAttendance(eventId); else setAttendanceMap({}) }, [eventId])
 
   const eventOptions = events.filter(e => !NON_MATCH_EVENT_TYPES.includes(e.event_type) && (e.category === 'joint' || e.category === team))
 
@@ -130,6 +132,16 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
     }
     setLoading(false)
   }
+
+  // 対象試合の出欠を取得し、選手選択欄の文字色に反映する（参加=青／未定=黄／不参加=赤／それ以外・未回答=黒のまま）
+  const fetchAttendance = async (evId) => {
+    const { data } = await supabase.from('attendance').select('member_id, status').eq('event_id', evId)
+    const map = {}
+    ;(data || []).forEach(r => { map[r.member_id] = r.status })
+    setAttendanceMap(map)
+  }
+  const ATTENDANCE_COLORS = { present: '#1a5fd6', undecided: '#c9960a', absent: '#d63a3a' }
+  const attendanceTextColor = (memberId) => ATTENDANCE_COLORS[attendanceMap[memberId]] || undefined
 
   const updateSlot = (i, patch) => setSlots(prev => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s))
 
@@ -356,13 +368,13 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
                   <option value="">未定</option>
                   {candidateOptions.map(o => o.sep
                     ? <option key={o.key} disabled>{' '}</option>
-                    : <option key={o.member.id} value={o.member.id}>{candidateLabel(o.member)}</option>)}
+                    : <option key={o.member.id} value={o.member.id} style={{ color: attendanceTextColor(o.member.id) }}>{candidateLabel(o.member)}</option>)}
                 </select>
                 <select style={{ ...inputStyle, width: '170px', flexShrink: 0 }} value={s.sub_member_id} onChange={e => updateSlot(i, { sub_member_id: e.target.value, sub_minute: e.target.value ? s.sub_minute : '' })}>
                   <option value="">交代なし</option>
                   {candidateOptions.map(o => o.sep
                     ? <option key={o.key} disabled>{' '}</option>
-                    : <option key={o.member.id} value={o.member.id}>{candidateLabel(o.member)}</option>)}
+                    : <option key={o.member.id} value={o.member.id} style={{ color: attendanceTextColor(o.member.id) }}>{candidateLabel(o.member)}</option>)}
                 </select>
                 {s.sub_member_id && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
