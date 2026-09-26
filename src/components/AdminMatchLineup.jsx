@@ -187,7 +187,10 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
       if (pa !== pb) return pa - pb
       return (a.name || '').localeCompare(b.name || '')
     })
-  const candidateLabel = (m) => `${m.name}${m.position1 ? `｜${m.position1}` : ''}${m.jersey_home ? ` #${m.jersey_home}` : ''}`
+  // 出欠状況の色分け（PCのselect要素は文字色でも表示されるが、iPhoneのSafariはoptionの文字色指定を無視する仕様のため、
+  // 機種を問わず確実に伝わるよう絵文字の色マークを名前の前に付ける方式を主に使う（文字色は補助的に残す）
+  const ATTENDANCE_DOTS = { present: '🔵', undecided: '🟡', absent: '🔴' }
+  const candidateLabel = (m) => `${ATTENDANCE_DOTS[attendanceMap[m.id]] ? ATTENDANCE_DOTS[attendanceMap[m.id]] + ' ' : ''}${m.name}${m.position1 ? `｜${m.position1}` : ''}${m.jersey_home ? ` #${m.jersey_home}` : ''}`
   // GK/DF/MF/FWの区切りごとに空欄行を挟んで見やすくする
   const candidateOptions = []
   let prevGroup = null
@@ -360,6 +363,9 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
           <div style={{ background: 'white', borderRadius: '10px', padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
             <div style={{ fontSize: '13px', fontWeight: '700', color: '#2a2220', marginBottom: '10px' }}>
               選手選択（{team === 'u40' ? 'U-40' : 'O-40'}メンバー＋兼務メンバーから選択）
+            </div>
+            <div style={{ fontSize: '10.5px', color: '#8a7f7a', marginBottom: '10px', marginTop: '-4px' }}>
+              対象試合の出欠状況：🔵参加　🟡未定　🔴不参加（無印は遅刻・早退・未回答など）
             </div>
             {slots.map((s, i) => (
               <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f0ebe5', flexWrap: 'wrap' }}>
