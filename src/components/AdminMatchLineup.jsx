@@ -36,6 +36,9 @@ const labelStyle = { fontSize: '11.5px', fontWeight: '600', color: '#8a7f7a', di
 
 const emptySlot = (position_index) => ({ position_index, member_id: '', sub_member_id: '', sub_minute: '' })
 const emptySlots = () => Array.from({ length: 11 }, (_, i) => emptySlot(i))
+// 前半・後半それぞれ独立した1セット分の状態（2026-09-27〜。以前は前半・後半で同じslotsを共有しており、
+// 後半を保存すると前半の内容が上書きされたように見えてしまう不具合があったため、half単位で完全に分離した）
+const emptyHalfState = () => ({ lineupId: null, subInterval: 20, formation: '4-2-3-1', slots: emptySlots() })
 
 const tabPillStyle = (active, accent) => ({
   padding: '6px 14px', borderRadius: '20px', fontSize: '12.5px', fontWeight: '700', cursor: 'pointer', border: '2px solid',
@@ -67,16 +70,17 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const [lineupId, setLineupId] = useState(null)
   const kit = 'home' // ホーム/アウェイの切替機能は廃止（常にホーム表示）
-  const [subInterval, setSubInterval] = useState(20)
-  const [formationFirst, setFormationFirst] = useState('4-2-3-1')
-  const [formationSecond, setFormationSecond] = useState('4-2-3-1')
-  const [slots, setSlots] = useState(emptySlots())
+  // 前半・後半それぞれ独立したデータとして保持する（lineupId・フォーメーション・交代タイミング基準・選手選択のすべて）
+  const [halves, setHalves] = useState({ first: emptyHalfState(), second: emptyHalfState() })
   const [attendanceMap, setAttendanceMap] = useState({}) // member_id -> status（対象試合の出欠）
 
   useEffect(() => { fetchEvents() }, [])
-  useEffect(() => { if (eventId) loadLineup(eventId, team) }, [eventId, team])
+  useEffect(() => {
+    if (eventId) loadLineup(eventId, team)
+    else setHalves({ first: emptyHalfState(), second: emptyHalfState() })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId, team])
   useEffect(() => { if (eventId) fetchAttendance(eventId); else setAttendanceMap({}) }, [eventId])
 
   const eventOptions = events.filter(e => !NON_MATCH_EVENT_TYPES.includes(e.event_type) && (e.category === 'joint' || e.category === team))
@@ -104,15 +108,14 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
     setLoading(false)
   }
 
+  // 対象試合・チームが決まったら、前半・後半それぞれのmatch_lineups行と選手情報を個別に取得する
   const loadLineup = async (evId, tm) => {
     setLoading(true)
-    const { data: lineupRow } = await supabase.from('match_lineups').select('*').eq('event_id', evId).eq('team', tm).maybeSingle()
-    if (lineupRow) {
-      setLineupId(lineupRow.id)
-      setSubInterval(lineupRow.sub_interval_minutes)
-      setFormationFirst(lineupRow.formation_first)
-      setFormationSecond(lineupRow.formation_second)
-      const { data: playerRows } = await supabase.from('match_lineup_players').select('*').eq('lineup_id', lineupRow.id).order('position_index')
+    const { data: lineupRows } = await supabase.from('match_lineups').select('*').eq('event_id', evId).eq('team', tm)
+    const next = { first: emptyHalfState(), second: emptyHalfState() }
+    for (const row of lineupRows || []) {
+      const key = row.half === 'second' ? 'second' : 'first'
+      const { data: playerRows } = await supabase.from('match_lineup_players').select('*').eq('lineup_id', row.id).order('position_index')
       const bySlot = emptySlots()
       ;(playerRows || []).forEach(p => {
         bySlot[p.position_index] = {
@@ -122,14 +125,14 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
           sub_minute: p.sub_minute ?? '',
         }
       })
-      setSlots(bySlot)
-    } else {
-      setLineupId(null)
-      setSubInterval(20)
-      setFormationFirst('4-2-3-1')
-      setFormationSecond('4-2-3-1')
-      setSlots(emptySlots())
+      next[key] = {
+        lineupId: row.id,
+        subInterval: row.sub_interval_minutes,
+        formation: row.formation || '4-2-3-1',
+        slots: bySlot,
+      }
     }
+    setHalves(next)
     setLoading(false)
   }
 
@@ -143,16 +146,22 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
   const ATTENDANCE_COLORS = { present: '#1a5fd6', undecided: '#c9960a', absent: '#d63a3a' }
   const attendanceTextColor = (memberId) => ATTENDANCE_COLORS[attendanceMap[memberId]] || undefined
 
-  const updateSlot = (i, patch) => setSlots(prev => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s))
+  const current = halves[half]
+  const updateCurrent = (patch) => setHalves(prev => ({ ...prev, [half]: { ...prev[half], ...patch } }))
+  const updateSlot = (i, patch) => setHalves(prev => ({
+    ...prev,
+    [half]: { ...prev[half], slots: prev[half].slots.map((s, idx) => idx === i ? { ...s, ...patch } : s) },
+  }))
 
   const saveLineup = async () => {
     if (!eventId) return alert('対象試合を選択してください')
     setSaving(true)
-    let id = lineupId
+    const h = halves[half]
+    let id = h.lineupId
     const { data: { user } } = await supabase.auth.getUser()
     const payload = {
-      event_id: eventId, team, kit, sub_interval_minutes: subInterval,
-      formation_first: formationFirst, formation_second: formationSecond,
+      event_id: eventId, team, half, kit, sub_interval_minutes: h.subInterval,
+      formation: h.formation,
       updated_at: new Date().toISOString(),
     }
     if (id) {
@@ -162,9 +171,9 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
       const { data, error } = await supabase.from('match_lineups').insert({ ...payload, created_by: user?.id }).select().single()
       if (error) { alert('保存に失敗しました: ' + error.message); setSaving(false); return }
       id = data.id
-      setLineupId(id)
+      updateCurrent({ lineupId: id })
     }
-    const playerPayload = slots.map(s => ({
+    const playerPayload = h.slots.map(s => ({
       lineup_id: id,
       position_index: s.position_index,
       member_id: s.member_id || null,
@@ -174,7 +183,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
     const { error: playerError } = await supabase.from('match_lineup_players').upsert(playerPayload, { onConflict: 'lineup_id,position_index' })
     if (playerError) { alert('選手情報の保存に失敗しました: ' + playerError.message); setSaving(false); return }
     setSaving(false)
-    alert('保存しました')
+    alert(`${half === 'first' ? '前半' : '後半'}を保存しました`)
   }
 
   // 候補選手：自チームのメンバー＋兼務メンバー（Schedule.jsxのbelongsToEventと同じ考え方）
@@ -187,7 +196,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
       if (pa !== pb) return pa - pb
       return (a.name || '').localeCompare(b.name || '')
     })
-  // 出欠状況の色分け（PCのselect要素は文字色でも表示されるが、iPhoneのSafariはoptionの文字色指定を無視する仕様のため、
+  // 出欠状況の色分け（PCのselect要素は文字色でも表示されるが、機種によってはoptionの文字色指定が反映されないことがあるため、
   // 機種を問わず確実に伝わるよう絵文字の色マークを名前の前に付ける方式を主に使う（文字色は補助的に残す）
   const ATTENDANCE_DOTS = { present: '🔵', undecided: '🟡', absent: '🔴' }
   const candidateLabel = (m) => `${ATTENDANCE_DOTS[attendanceMap[m.id]] ? ATTENDANCE_DOTS[attendanceMap[m.id]] + ' ' : ''}${m.name}${m.position1 ? `｜${m.position1}` : ''}${m.jersey_home ? ` #${m.jersey_home}` : ''}`
@@ -204,8 +213,11 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
   })
 
   const accent = team === 'u40' ? '#7b5ea7' : '#2a5fa5'
-  const formation = half === 'first' ? formationFirst : formationSecond
-  const setFormation = (f) => (half === 'first' ? setFormationFirst(f) : setFormationSecond(f))
+  const formation = current.formation
+  const setFormation = (f) => updateCurrent({ formation: f })
+  const subInterval = current.subInterval
+  const setSubInterval = (n) => updateCurrent({ subInterval: n })
+  const slots = current.slots
 
   const buildPlayer = (idx) => {
     const slot = slots[idx] || emptySlot(idx)
@@ -284,7 +296,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
             <div>
-              <div style={labelStyle}>ハーフ（同じ11人のまま、ポジションのみ入れ替え）</div>
+              <div style={labelStyle}>ハーフ（前半・後半で別々に選手編成・フォーメーションを保存できます）</div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <div style={tabPillStyle(half === 'first', accent)} onClick={() => setHalf('first')}>前半</div>
                 <div style={tabPillStyle(half === 'second', accent)} onClick={() => setHalf('second')}>後半</div>
@@ -299,7 +311,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
               </div>
             </div>
             <div>
-              <div style={labelStyle}>交代タイミング基準（10分刻みで個別調整も可）</div>
+              <div style={labelStyle}>交代タイミング基準（{half === 'first' ? '前半' : '後半'}／10分刻みで個別調整も可）</div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {[10, 20, 30].map(n => (
                   <div key={n} style={tabPillStyle(subInterval === n, accent)} onClick={() => setSubInterval(n)}>{n}分</div>
@@ -362,7 +374,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
           {/* 選手選択フォーム */}
           <div style={{ background: 'white', borderRadius: '10px', padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
             <div style={{ fontSize: '13px', fontWeight: '700', color: '#2a2220', marginBottom: '10px' }}>
-              選手選択（{team === 'u40' ? 'U-40' : 'O-40'}メンバー＋兼務メンバーから選択）
+              選手選択（{half === 'first' ? '前半' : '後半'}／{team === 'u40' ? 'U-40' : 'O-40'}メンバー＋兼務メンバーから選択）
             </div>
             <div style={{ fontSize: '10.5px', color: '#8a7f7a', marginBottom: '10px', marginTop: '-4px' }}>
               対象試合の出欠状況：🔵参加　🟡未定　🔴不参加（無印は遅刻・早退・未回答など）
@@ -373,13 +385,13 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
                 <select style={{ ...inputStyle, flex: 1, minWidth: '140px' }} value={s.member_id} onChange={e => updateSlot(i, { member_id: e.target.value })}>
                   <option value="">未定</option>
                   {candidateOptions.map(o => o.sep
-                    ? <option key={o.key} disabled>{' '}</option>
+                    ? <option key={o.key} disabled>{' '}</option>
                     : <option key={o.member.id} value={o.member.id} style={{ color: attendanceTextColor(o.member.id) }}>{candidateLabel(o.member)}</option>)}
                 </select>
                 <select style={{ ...inputStyle, width: '170px', flexShrink: 0 }} value={s.sub_member_id} onChange={e => updateSlot(i, { sub_member_id: e.target.value, sub_minute: e.target.value ? s.sub_minute : '' })}>
                   <option value="">交代なし</option>
                   {candidateOptions.map(o => o.sep
-                    ? <option key={o.key} disabled>{' '}</option>
+                    ? <option key={o.key} disabled>{' '}</option>
                     : <option key={o.member.id} value={o.member.id} style={{ color: attendanceTextColor(o.member.id) }}>{candidateLabel(o.member)}</option>)}
                 </select>
                 {s.sub_member_id && (
@@ -395,7 +407,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
             </div>
             <div style={{ textAlign: 'right', marginTop: '14px' }}>
               <button style={btn('#e8c84a', '#2a2220', { padding: '9px 22px', fontSize: '13px', fontWeight: '700', opacity: saving ? 0.6 : 1 })} disabled={saving} onClick={saveLineup}>
-                {saving ? '保存中...' : '💾 保存する'}
+                {saving ? '保存中...' : `💾 ${half === 'first' ? '前半' : '後半'}を保存する`}
               </button>
             </div>
           </div>
