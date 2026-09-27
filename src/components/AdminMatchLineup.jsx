@@ -32,6 +32,14 @@ const todayLocalStr = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// 対象試合として選べるかどうかの判定。フットサルは種別(event_type)が「トレーニング」だったり空欄だったりと
+// バラつきがあり種別だけでは除外しきれないため、タイトルに「フットサル」を含む場合も除外する
+const isLineupEligibleEvent = (e, tm) =>
+  !NON_MATCH_EVENT_TYPES.includes(e.event_type) &&
+  !(e.title || '').includes('フットサル') &&
+  (e.category === 'joint' || e.category === tm) &&
+  e.event_date >= todayLocalStr()
+
 const btn = (bg, color, extra = {}) => ({
   padding: '7px 14px', background: bg, color, border: 'none',
   borderRadius: '6px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', ...extra,
@@ -93,7 +101,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
 
   // 対象試合は「今日以降にスケジュール登録されている、対象カテゴリの試合」のみに絞り込む（過去の試合・フットサル等は出さない）
   const eventOptions = events
-    .filter(e => !NON_MATCH_EVENT_TYPES.includes(e.event_type) && (e.category === 'joint' || e.category === team) && e.event_date >= todayLocalStr())
+    .filter(e => isLineupEligibleEvent(e, team))
     .sort((a, b) => a.event_date.localeCompare(b.event_date))
 
   useEffect(() => {
@@ -109,7 +117,7 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
     if (data) {
       setEvents(data)
       const opts = data
-        .filter(e => !NON_MATCH_EVENT_TYPES.includes(e.event_type) && (e.category === 'joint' || e.category === initialTeam) && e.event_date >= todayLocalStr())
+        .filter(e => isLineupEligibleEvent(e, initialTeam))
         .sort((a, b) => a.event_date.localeCompare(b.event_date))
       setEventId(opts[0]?.id || '')
     }
