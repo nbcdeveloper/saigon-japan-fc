@@ -21,8 +21,16 @@ const POSITION_LABELS = {
 // 選手選択欄の並び順（メインポジション基準。GK→DF→MF→FWの順）
 const POSITION_SORT_ORDER = { GK: 0, DF: 1, MF: 2, FW: 3 }
 
-// 試合ではないイベント種別（Admin.jsxの試合結果タブと同じ定義）
-const NON_MATCH_EVENT_TYPES = ['ゴルフコンペ', 'トレーニング', 'ミーティング', '送別会／歓迎会']
+// 試合メンバー編成の対象にしないイベント種別（Admin.jsxの試合結果タブの定義に「フットサル」を追加。
+// フットサルは11人制のフォーメーション編成という本機能の性質に合わないため、この画面でのみ除外している）
+const NON_MATCH_EVENT_TYPES = ['ゴルフコンペ', 'トレーニング', 'ミーティング', '送別会／歓迎会', 'フットサル']
+
+// ローカル（端末の）時刻基準で「今日」の日付文字列を返す（UTC基準だとベトナム時間の深夜に日付がずれるため。
+// Schedule.jsx等、他ファイルと同じ方式に統一）
+const todayLocalStr = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 const btn = (bg, color, extra = {}) => ({
   padding: '7px 14px', background: bg, color, border: 'none',
@@ -83,15 +91,15 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
   }, [eventId, team])
   useEffect(() => { if (eventId) fetchAttendance(eventId); else setAttendanceMap({}) }, [eventId])
 
-  const eventOptions = events.filter(e => !NON_MATCH_EVENT_TYPES.includes(e.event_type) && (e.category === 'joint' || e.category === team))
+  // 対象試合は「今日以降にスケジュール登録されている、対象カテゴリの試合」のみに絞り込む（過去の試合・フットサル等は出さない）
+  const eventOptions = events
+    .filter(e => !NON_MATCH_EVENT_TYPES.includes(e.event_type) && (e.category === 'joint' || e.category === team) && e.event_date >= todayLocalStr())
+    .sort((a, b) => a.event_date.localeCompare(b.event_date))
 
   useEffect(() => {
-    // チーム切り替えで今の選択試合が対象外になったら選び直す
+    // チーム切り替えで今の選択試合が対象外になったら、一番近い未来の試合を選び直す
     if (eventId && !eventOptions.some(e => e.id === eventId)) {
-      const todayStr = new Date().toISOString().slice(0, 10)
-      const opts = events.filter(e => !NON_MATCH_EVENT_TYPES.includes(e.event_type) && (e.category === 'joint' || e.category === team))
-      const upcoming = [...opts].sort((a, b) => a.event_date.localeCompare(b.event_date)).find(e => e.event_date >= todayStr)
-      setEventId((upcoming || opts[0])?.id || '')
+      setEventId(eventOptions[0]?.id || '')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [team, events])
@@ -100,10 +108,10 @@ export default function AdminMatchLineup({ members, canU40, canO40 }) {
     const { data } = await supabase.from('events').select('*').order('event_date', { ascending: false })
     if (data) {
       setEvents(data)
-      const todayStr = new Date().toISOString().slice(0, 10)
-      const opts = data.filter(e => !NON_MATCH_EVENT_TYPES.includes(e.event_type) && (e.category === 'joint' || e.category === initialTeam))
-      const upcoming = [...opts].sort((a, b) => a.event_date.localeCompare(b.event_date)).find(e => e.event_date >= todayStr)
-      setEventId((upcoming || opts[0])?.id || '')
+      const opts = data
+        .filter(e => !NON_MATCH_EVENT_TYPES.includes(e.event_type) && (e.category === 'joint' || e.category === initialTeam) && e.event_date >= todayLocalStr())
+        .sort((a, b) => a.event_date.localeCompare(b.event_date))
+      setEventId(opts[0]?.id || '')
     }
     setLoading(false)
   }
