@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './supabase'
 import Login from './pages/Login'
-import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Schedule from './pages/Schedule'
 import Results from './pages/Results'
@@ -23,41 +22,17 @@ import Layout from './components/Layout'
 
 function App() {
   const [session, setSession] = useState(null)
-  const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      if (session) {
-        fetchProfile(session.user.id)
-      } else {
-        setLoading(false)
-      }
+      setLoading(false)
     })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      if (session) {
-        fetchProfile(session.user.id)
-      } else {
-        setProfile(null)
-        setLoading(false)
-      }
     })
-
-    return () => subscription.unsubscribe()
   }, [])
-
-  const fetchProfile = async (userId) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, teams(*)')
-      .eq('id', userId)
-      .single()
-    if (!error) setProfile(data)
-    setLoading(false)
-  }
 
   if (loading) return (
     <div style={{
@@ -69,34 +44,27 @@ function App() {
     </div>
   )
 
-  // team_idをグローバルに使えるようにwindowに設定
-  if (profile) {
-    window.__teamId = profile.team_id
-    window.__profile = profile
-  }
-
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
-        <Route path="/register" element={!session ? <Register /> : <Navigate to="/" />} />
-        <Route path="/" element={session ? <Layout session={session} profile={profile} /> : <Navigate to="/login" />}>
-          <Route index element={<Dashboard profile={profile} />} />
-          <Route path="sefa" element={<Sefa profile={profile} />} />
-          <Route path="sefa/info" element={<SefaInfo profile={profile} />} />
-          <Route path="schedule" element={<Schedule profile={profile} />} />
-          <Route path="results" element={<Results profile={profile} />} />
-          <Route path="attendance" element={<Attendance profile={profile} />} />
-          <Route path="members" element={<Members profile={profile} />} />
-          <Route path="announcements" element={<Announcements profile={profile} />} />
-          <Route path="sponsors" element={<Sponsors profile={profile} />} />
-          <Route path="orgchart" element={<OrgChart profile={profile} />} />
-          <Route path="sns" element={<SNS profile={profile} />} />
-          <Route path="rules" element={<Rules profile={profile} />} />
-          <Route path="o40-policy" element={<O40Policy profile={profile} />} />
-          <Route path="u40-policy" element={<U40Policy profile={profile} />} />
-          <Route path="mypage" element={<MyPage profile={profile} />} />
-          <Route path="admin" element={<Admin profile={profile} />} />
+        <Route path="/" element={session ? <Layout session={session} /> : <Navigate to="/login" />}>
+          <Route index element={<Dashboard />} />
+          <Route path="sefa" element={<Sefa />} />
+          <Route path="sefa/info" element={<SefaInfo />} />
+          <Route path="schedule" element={<Schedule />} />
+          <Route path="results" element={<Results />} />
+          <Route path="attendance" element={<Attendance />} />
+          <Route path="members" element={<Members />} />
+          <Route path="announcements" element={<Announcements />} />
+          <Route path="sponsors" element={<Sponsors />} />
+          <Route path="orgchart" element={<OrgChart />} />
+          <Route path="sns" element={<SNS />} />
+          <Route path="rules" element={<Rules />} />
+          <Route path="o40-policy" element={<O40Policy />} />
+          <Route path="u40-policy" element={<U40Policy />} />
+          <Route path="mypage" element={<MyPage />} />
+          <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>
     </BrowserRouter>
