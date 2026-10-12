@@ -738,23 +738,116 @@ export default function Admin() {
     borderRight: '1.5px solid #e0dbd5', whiteSpace: 'nowrap'
   })
 
+  // マスタ名変更時に、登録済みデータ（スケジュール・試合結果）の旧名称も新名称へ連動更新する対象
+  const MASTER_CASCADE = {
+    event_type: [['events', 'event_type'], ['matches', 'match_type']],
+    venue: [['events', 'venue'], ['matches', 'venue']],
+    meetup_place: [['events', 'meetup_place']],
+  }
+  // コード内で名称を直接参照している種別（名前を変えると該当画面の表示条件に影響しうる）
+  const MASTER_HARDCODED_EVENT_TYPES = ['公式戦', 'リーグ戦', 'SEFA 11S', 'フレンドリー', 'カップ戦', '遠征']
+
   const MasterSection = ({ category, title }) => {
     const [inputVal, setInputVal] = useState('')
+    const [editingId, setEditingId] = useState(null)
+    const [editVal, setEditVal] = useState('')
+    const [busy, setBusy] = useState(false)
+    const list = masters[category]
+
     const handleAdd = async () => {
       const value = inputVal.trim()
       if (!value) return
-      const maxOrder = masters[category].length > 0 ? Math.max(...masters[category].map(m => m.sort_order)) : 0
+      const maxOrder = list.length > 0 ? Math.max(...list.map(m => m.sort_order || 0)) : 0
       await supabase.from('masters').insert({ category, value, sort_order: maxOrder + 1 })
       setInputVal('')
       fetchMasters()
     }
+
+    // 並び替え：表示順に 1,2,3... と振り直す（既存の sort_order に重複・欠番があっても確実に入れ替わる）
+    const handleMove = async (index, dir) => {
+      const target = index + dir
+      if (busy || target < 0 || target >= list.length) return
+      setBusy(true)
+      const next = [...list]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      const results = await Promise.all(
+        next.map((m, i) => (m.sort_order === i + 1
+          ? Promise.resolve({ error: null })
+          : supabase.from('masters').update({ sort_order: i + 1 }).eq('id', m.id)))
+      )
+      const failed = results.find(r => r.error)
+      if (failed) window.alert('並び替えの保存に失敗しました：' + failed.error.message)
+      await fetchMasters()
+      setBusy(false)
+    }
+
+    const startEdit = (m) => { setEditingId(m.id); setEditVal(m.value) }
+    const cancelEdit = () => { setEditingId(null); setEditVal('') }
+
+    // 名前変更：マスタ本体を更新したうえで、登録済みデータの旧名称も新名称へ更新する
+    const handleRename = async (m) => {
+      const newValue = editVal.trim()
+      if (!newValue || newValue === m.value) { cancelEdit(); return }
+      if (list.some(x => x.id !== m.id && x.value === newValue)) {
+        window.alert('同じ名前の項目がすでにあります：' + newValue)
+        return
+      }
+      const cascade = MASTER_CASCADE[category] || []
+      let msg = `「${m.value}」を「${newValue}」に変更します。\n登録済みのスケジュール・試合結果で使われている「${m.value}」も、すべて「${newValue}」に更新されます。`
+      if (category === 'event_type' && MASTER_HARDCODED_EVENT_TYPES.includes(m.value)) {
+        msg += `\n\n⚠️「${m.value}」はサイトの一部画面（SEFA S11ページ・試合結果の種別など）が名称で直接参照している種別です。名前を変えると、それらの画面の表示に影響する場合があります。本当に変更しますか？`
+      }
+      if (!window.confirm(msg)) return
+      setBusy(true)
+      const { error } = await supabase.from('masters').update({ value: newValue }).eq('id', m.id)
+      if (error) {
+        window.alert('名前の変更に失敗しました：' + error.message)
+        setBusy(false)
+        return
+      }
+      const errors = []
+      for (const [table, column] of cascade) {
+        const { error: e } = await supabase.from(table).update({ [column]: newValue }).eq(column, m.value)
+        if (e) errors.push(`${table}.${column}: ${e.message}`)
+      }
+      if (errors.length > 0) {
+        window.alert('マスタ名は変更されましたが、登録済みデータの更新で一部エラーが出ました。\n' + errors.join('\n') + '\n\nお手数ですが、この内容を開発担当に伝えてください。')
+      }
+      cancelEdit()
+      await fetchMasters()
+      fetchEvents()
+      fetchMatches()
+      setBusy(false)
+    }
+
+    const arrowBtn = (disabled) => btn(disabled ? '#e0dbd5' : '#2a2220', disabled ? '#b0a8a2' : '#e8c84a', { padding: '3px 8px', fontSize: '11px', cursor: disabled ? 'default' : 'pointer' })
+
     return (
       <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
         <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#2a2220', marginBottom: '12px' }}>{title}</div>
-        {masters[category].map(m => (
-          <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0ebe5', fontSize: '13px' }}>
-            <span>{m.value}</span>
-            <button style={btn('#e74c3c', 'white', { padding: '3px 9px', fontSize: '11px' })} onClick={() => deleteMaster(m.id)}>削除</button>
+        {list.map((m, i) => (
+          <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '8px 0', borderBottom: '1px solid #f0ebe5', fontSize: '13px' }}>
+            {editingId === m.id ? (
+              <>
+                <input style={{ ...inputStyle, flex: 1, minWidth: 0 }} value={editVal} autoFocus
+                  onChange={e => setEditVal(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleRename(m); if (e.key === 'Escape') cancelEdit() }} />
+                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  <button disabled={busy} style={btn('#e8c84a', '#2a2220', { padding: '3px 9px', fontSize: '11px' })} onClick={() => handleRename(m)}>保存</button>
+                  <button disabled={busy} style={btn('#e0dbd5', '#2a2220', { padding: '3px 9px', fontSize: '11px' })} onClick={cancelEdit}>キャンセル</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <span style={{ flex: 1, minWidth: 0, wordBreak: 'break-all' }}>{m.value}</span>
+                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  <button disabled={busy || i === 0} style={arrowBtn(busy || i === 0)} onClick={() => handleMove(i, -1)} title="上へ">↑</button>
+                  <button disabled={busy || i === list.length - 1} style={arrowBtn(busy || i === list.length - 1)} onClick={() => handleMove(i, 1)} title="下へ">↓</button>
+                  <button disabled={busy} style={btn('#2a5fa5', 'white', { padding: '3px 9px', fontSize: '11px' })} onClick={() => startEdit(m)}>編集</button>
+                  <button disabled={busy} style={btn('#e74c3c', 'white', { padding: '3px 9px', fontSize: '11px' })} onClick={() => deleteMaster(m.id)}>削除</button>
+                </div>
+              </>
+            )}
           </div>
         ))}
         <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
