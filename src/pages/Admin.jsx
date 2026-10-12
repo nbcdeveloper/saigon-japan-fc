@@ -826,10 +826,10 @@ export default function Admin() {
       <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
         <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#2a2220', marginBottom: '12px' }}>{title}</div>
         {list.map((m, i) => (
-          <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '8px 0', borderBottom: '1px solid #f0ebe5', fontSize: '13px' }}>
+          <div key={m.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', padding: '10px 0', borderBottom: '1px solid #f0ebe5', fontSize: '13px' }}>
             {editingId === m.id ? (
               <>
-                <input style={{ ...inputStyle, flex: 1, minWidth: 0 }} value={editVal} autoFocus
+                <input style={{ ...inputStyle, flex: '1 1 100%', minWidth: 0 }} value={editVal} autoFocus
                   onChange={e => setEditVal(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleRename(m); if (e.key === 'Escape') cancelEdit() }} />
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
@@ -839,7 +839,7 @@ export default function Admin() {
               </>
             ) : (
               <>
-                <span style={{ flex: 1, minWidth: 0, wordBreak: 'break-all' }}>{m.value}</span>
+                <span style={{ flex: '1 1 100%', minWidth: 0, wordBreak: 'break-word', lineHeight: 1.5 }}>{m.value}</span>
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                   <button disabled={busy || i === 0} style={arrowBtn(busy || i === 0)} onClick={() => handleMove(i, -1)} title="上へ">↑</button>
                   <button disabled={busy || i === list.length - 1} style={arrowBtn(busy || i === list.length - 1)} onClick={() => handleMove(i, 1)} title="下へ">↓</button>
@@ -1490,7 +1490,7 @@ export default function Admin() {
 
       {/* マスタ設定 */}
       {tab === 'master' && (
-        <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '18px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '18px' }}>
           <MasterSection category="event_type" title="📋 種別マスタ" />
           <MasterSection category="venue" title="📍 場所マスタ" />
           <MasterSection category="meetup_place" title="🚩 集合場所マスタ" />
