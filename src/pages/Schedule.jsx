@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { supabase } from '../supabase'
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
@@ -157,6 +157,9 @@ export default function Schedule() {
     color: filter === val ? 'white' : '#8a7f7a',
   })
 
+  // 注意: EventCard / Section / CalendarView は「コンポーネント」ではなく描画用の関数として呼び出している（{EventCard({...})}）。
+  // <EventCard /> の形で使うと、親が再描画されるたびに別コンポーネント扱いとなり一覧全体が作り直され、
+  // 「名前を見る」を押すと画面が飛ぶ原因になる（2026-10-25修正）。内部でuseStateなどのフックは使わないこと。
   const EventCard = ({ ev, isPast }) => {
     const cat = catInfo(ev.category)
     const d = new Date(ev.event_date)
@@ -315,7 +318,7 @@ export default function Schedule() {
     return (
       <div style={{ marginBottom: '22px' }}>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '14px', fontWeight: 'bold', color, marginBottom: '10px', letterSpacing: '1px' }}>■ {title}</div>
-        {evs.map(ev => <EventCard key={ev.id} ev={ev} isPast={isPast} />)}
+        {evs.map(ev => <Fragment key={ev.id}>{EventCard({ ev, isPast })}</Fragment>)}
       </div>
     )
   }
@@ -430,7 +433,7 @@ export default function Schedule() {
               予定はありません
             </div>
           ) : (
-            selectedDayEvents.map(ev => <EventCard key={ev.id} ev={ev} isPast={ev.event_date < todayStr} />)
+            selectedDayEvents.map(ev => <Fragment key={ev.id}>{EventCard({ ev, isPast: ev.event_date < todayStr })}</Fragment>)
           ))}
         </div>
       </div>
@@ -452,7 +455,7 @@ export default function Schedule() {
       </div>
 
       {loading ? <div style={{ color: '#8a7f7a', fontSize: '13px' }}>読み込み中...</div> : filter === 'calendar' ? (
-        <CalendarView />
+        CalendarView()
       ) : (
         <>
           {filteredUpcoming.length === 0 ? (
@@ -461,11 +464,11 @@ export default function Schedule() {
             </div>
           ) : filter === 'all' ? (
             <>
-              <Section title="U-40" color="#7b5ea7" evs={upG.u40} isPast={false} />
-              <Section title="O-40" color="#2a5fa5" evs={upG.o40} isPast={false} />
-              <Section title="合同イベント" color="#e8a020" evs={upG.joint} isPast={false} />
+              {Section({ title: 'U-40', color: '#7b5ea7', evs: upG.u40, isPast: false })}
+              {Section({ title: 'O-40', color: '#2a5fa5', evs: upG.o40, isPast: false })}
+              {Section({ title: '合同イベント', color: '#e8a020', evs: upG.joint, isPast: false })}
             </>
-          ) : filteredUpcoming.map(ev => <EventCard key={ev.id} ev={ev} isPast={false} />)}
+          ) : filteredUpcoming.map(ev => <Fragment key={ev.id}>{EventCard({ ev, isPast: false })}</Fragment>)}
 
           {filteredPast.length > 0 && (
             <div style={{ marginTop: '10px' }}>
@@ -479,11 +482,11 @@ export default function Schedule() {
               </div>
               {showPast && (filter === 'all' ? (
                 <>
-                  <Section title="U-40" color="#aaa" evs={paG.u40} isPast={true} />
-                  <Section title="O-40" color="#aaa" evs={paG.o40} isPast={true} />
-                  <Section title="合同イベント" color="#aaa" evs={paG.joint} isPast={true} />
+                  {Section({ title: 'U-40', color: '#aaa', evs: paG.u40, isPast: true })}
+                  {Section({ title: 'O-40', color: '#aaa', evs: paG.o40, isPast: true })}
+                  {Section({ title: '合同イベント', color: '#aaa', evs: paG.joint, isPast: true })}
                 </>
-              ) : filteredPast.map(ev => <EventCard key={ev.id} ev={ev} isPast={true} />))}
+              ) : filteredPast.map(ev => <Fragment key={ev.id}>{EventCard({ ev, isPast: true })}</Fragment>))}
             </div>
           )}
         </>
