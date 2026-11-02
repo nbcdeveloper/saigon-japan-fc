@@ -172,6 +172,14 @@ export default function Layout({ session }) {
                 <span style={{ fontSize: '18px' }}>{item.icon}</span>{item.label}
               </div>
             ))}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '8px 24px 0', paddingTop: '12px' }}>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '10px', wordBreak: 'break-all' }}>{session.user.email}</div>
+              <button onClick={() => { setMenuOpen(false); handleLogout() }} style={{
+                width: '100%', padding: '10px', background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.25)', borderRadius: '8px',
+                color: 'rgba(245,242,238,0.8)', fontSize: '14px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit'
+              }}>🚪 ログアウト</button>
+            </div>
           </div>
         </>
       )}
