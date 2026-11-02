@@ -31,7 +31,7 @@ const TEAMS = [
 
 const fmtDate = (d) => (d ? String(d).replace(/-/g, '/') : '')
 
-export default function AdminEquipment({ canU40, canO40 }) {
+export default function AdminEquipment({ canU40, canO40, members = [] }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -70,6 +70,13 @@ export default function AdminEquipment({ canU40, canO40 }) {
   }
 
   const closeModal = () => { setModal(null) }
+
+  // 管理者の選択肢：そのチームの所属メンバー（在籍中。兼務メンバーは両チームに含む）。名前順
+  const managerOptions = (team) => members
+    .filter(m => m.status === 'active' && (m.team === team || m.dual_team))
+    .map(m => m.name)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'ja'))
 
   const handleSave = async () => {
     if (!modal || saving) return
@@ -202,7 +209,14 @@ export default function AdminEquipment({ canU40, canO40 }) {
             </div>
             <div style={{ marginBottom: '12px' }}>
               <label style={labelStyle}>管理者</label>
-              <input style={inputStyle} value={form.manager} onChange={e => setForm({ ...form, manager: e.target.value })} placeholder="例：山田" />
+              <select style={inputStyle} value={form.manager} onChange={e => setForm({ ...form, manager: e.target.value })}>
+                <option value="">（未設定）</option>
+                {/* 以前に手入力された名前など、メンバー名と一致しない値もそのまま残して選べるようにする */}
+                {form.manager && !managerOptions(modal.team).includes(form.manager) && (
+                  <option value={form.manager}>{form.manager}（現在の値）</option>
+                )}
+                {managerOptions(modal.team).map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </div>
             <div style={{ marginBottom: '18px' }}>
               <label style={labelStyle}>メモ</label>

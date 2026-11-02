@@ -1575,7 +1575,7 @@ export default function Admin() {
               {members.filter(m => m.role === 'admin').length === 0 && <div style={{ color: '#8a7f7a', fontSize: '12px' }}>管理者権限を持つメンバーがいません</div>}
             </div>
           )}
-          <AdminEquipment canU40={isEquipmentEditorU40} canO40={isEquipmentEditorO40} />
+          <AdminEquipment canU40={isEquipmentEditorU40} canO40={isEquipmentEditorO40} members={members} />
         </div>
       )}
 
