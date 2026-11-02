@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import AdminPayments from '../components/AdminPayments'
 import AdminMatchLineup from '../components/AdminMatchLineup'
+import AdminEquipment from '../components/AdminEquipment'
 
 const btn = (bg, color, extra = {}) => ({
   padding: '7px 14px', background: bg, color, border: 'none',
@@ -117,6 +118,8 @@ export default function Admin() {
   const [isTreasurerAdmin, setIsTreasurerAdmin] = useState(false)
   const [isLineupEditorU40, setIsLineupEditorU40] = useState(false)
   const [isLineupEditorO40, setIsLineupEditorO40] = useState(false)
+  const [isEquipmentEditorU40, setIsEquipmentEditorU40] = useState(false)
+  const [isEquipmentEditorO40, setIsEquipmentEditorO40] = useState(false)
   const [currentUserId, setCurrentUserId] = useState(null)
   const [wallets, setWallets] = useState([])
   const [transactions, setTransactions] = useState([])
@@ -161,6 +164,12 @@ export default function Admin() {
     }
     if (data?.lineup_editor_u40) setIsLineupEditorU40(true)
     if (data?.lineup_editor_o40) setIsLineupEditorO40(true)
+    // 備品担当フラグは別クエリで取得（列が未作成でも管理者画面全体が使えなくならないようにするため）
+    const { data: eq, error: eqErr } = await supabase.from('profiles').select('equipment_editor_u40, equipment_editor_o40').eq('id', user.id).single()
+    if (!eqErr && eq) {
+      if (eq.equipment_editor_u40) setIsEquipmentEditorU40(true)
+      if (eq.equipment_editor_o40) setIsEquipmentEditorO40(true)
+    }
     if (user.email === 'vespa9304@gmail.com') setIsTreasurerAdmin(true)
     setLoading(false)
   }
@@ -500,6 +509,13 @@ export default function Admin() {
     fetchMembers()
   }
 
+  const toggleEquipmentEditor = async (memberId, team, newVal) => {
+    const col = team === 'u40' ? 'equipment_editor_u40' : 'equipment_editor_o40'
+    const { error } = await supabase.from('profiles').update({ [col]: newVal }).eq('id', memberId)
+    if (error) window.alert('権限の変更に失敗しました：' + error.message)
+    fetchMembers()
+  }
+
   // 管理者権限の付与・解除（芦田のみ操作可）
   const toggleAdminRole = async (memberId, makeAdmin) => {
     if (!window.confirm(makeAdmin ? 'この人を管理者にしますか？' : 'この人の管理者権限を外しますか？（会計担当権限も同時に外れます）')) return
@@ -726,9 +742,10 @@ export default function Admin() {
     ['jersey', '👕 背番号'],
     ['sponsors', '🤝 協賛'],
     ['orgchart', '🧑‍🤝‍🧑 体制図'],
-    ['master', '⚙️ マスタ'],
     ...((isLineupEditorU40 || isLineupEditorO40) ? [['lineup', '🎽 試合メンバー']] : []),
     ...(isTreasurer ? [['accounting', '💰 会計']] : []),
+    ...((isEquipmentEditorU40 || isEquipmentEditorO40 || isTreasurerAdmin) ? [['equipment', '🧰 備品管理']] : []),
+    ['master', '⚙️ マスタ'],
   ]
 
   const adminTabStyle = (t) => ({
@@ -752,14 +769,25 @@ export default function Admin() {
     const [editingId, setEditingId] = useState(null)
     const [editVal, setEditVal] = useState('')
     const [busy, setBusy] = useState(false)
+    const [inputUrl, setInputUrl] = useState('')
+    const [editUrl, setEditUrl] = useState('')
+    const isVenue = category === 'venue' // 場所マスタのみ、Googleマップのリンクを持てる
+    const isHttpUrl = (u) => /^https?:\/\//i.test(u || '')
     const list = masters[category]
 
     const handleAdd = async () => {
       const value = inputVal.trim()
       if (!value) return
       const maxOrder = list.length > 0 ? Math.max(...list.map(m => m.sort_order || 0)) : 0
-      await supabase.from('masters').insert({ category, value, sort_order: maxOrder + 1 })
+      const url = inputUrl.trim()
+      if (isVenue && url && !isHttpUrl(url)) {
+        window.alert('Googleマップのリンクは https:// で始まるURLを入力してください')
+        return
+      }
+      const { error } = await supabase.from('masters').insert({ category, value, sort_order: maxOrder + 1, ...(isVenue && url ? { map_url: url } : {}) })
+      if (error) { window.alert('追加に失敗しました：' + error.message); return }
       setInputVal('')
+      setInputUrl('')
       fetchMasters()
     }
 
@@ -781,27 +809,37 @@ export default function Admin() {
       setBusy(false)
     }
 
-    const startEdit = (m) => { setEditingId(m.id); setEditVal(m.value) }
-    const cancelEdit = () => { setEditingId(null); setEditVal('') }
+    const startEdit = (m) => { setEditingId(m.id); setEditVal(m.value); setEditUrl(m.map_url || '') }
+    const cancelEdit = () => { setEditingId(null); setEditVal(''); setEditUrl('') }
 
     // 名前変更：マスタ本体を更新したうえで、登録済みデータの旧名称も新名称へ更新する
     const handleRename = async (m) => {
       const newValue = editVal.trim()
-      if (!newValue || newValue === m.value) { cancelEdit(); return }
-      if (list.some(x => x.id !== m.id && x.value === newValue)) {
+      const newUrl = editUrl.trim()
+      const nameChanged = !!newValue && newValue !== m.value
+      const urlChanged = isVenue && newUrl !== (m.map_url || '')
+      if (!newValue || (!nameChanged && !urlChanged)) { cancelEdit(); return }
+      if (urlChanged && newUrl && !isHttpUrl(newUrl)) {
+        window.alert('Googleマップのリンクは https:// で始まるURLを入力してください')
+        return
+      }
+      if (nameChanged && list.some(x => x.id !== m.id && x.value === newValue)) {
         window.alert('同じ名前の項目がすでにあります：' + newValue)
         return
       }
-      const cascade = MASTER_CASCADE[category] || []
+      const cascade = nameChanged ? (MASTER_CASCADE[category] || []) : []
       let msg = `「${m.value}」を「${newValue}」に変更します。\n登録済みのスケジュール・試合結果で使われている「${m.value}」も、すべて「${newValue}」に更新されます。`
       if (category === 'event_type' && MASTER_HARDCODED_EVENT_TYPES.includes(m.value)) {
         msg += `\n\n⚠️「${m.value}」はサイトの一部画面（SEFA S11ページ・試合結果の種別など）が名称で直接参照している種別です。名前を変えると、それらの画面の表示に影響する場合があります。本当に変更しますか？`
       }
-      if (!window.confirm(msg)) return
+      if (nameChanged && !window.confirm(msg)) return
       setBusy(true)
-      const { error } = await supabase.from('masters').update({ value: newValue }).eq('id', m.id)
+      const patch = {}
+      if (nameChanged) patch.value = newValue
+      if (urlChanged) patch.map_url = newUrl || null
+      const { error } = await supabase.from('masters').update(patch).eq('id', m.id)
       if (error) {
-        window.alert('名前の変更に失敗しました：' + error.message)
+        window.alert('保存に失敗しました：' + error.message + (urlChanged ? '\n（地図リンクの保存には、先にデータベースの準備〔SQL〕が必要です）' : ''))
         setBusy(false)
         return
       }
@@ -832,6 +870,12 @@ export default function Admin() {
                 <input style={{ ...inputStyle, flex: '1 1 100%', minWidth: 0 }} value={editVal} autoFocus
                   onChange={e => setEditVal(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleRename(m); if (e.key === 'Escape') cancelEdit() }} />
+                {isVenue && (
+                  <input style={{ ...inputStyle, flex: '1 1 100%', minWidth: 0 }} value={editUrl}
+                    onChange={e => setEditUrl(e.target.value)}
+                    placeholder="Googleマップのリンク（任意）例：https://maps.app.goo.gl/..."
+                    onKeyDown={e => { if (e.key === 'Enter') handleRename(m); if (e.key === 'Escape') cancelEdit() }} />
+                )}
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                   <button disabled={busy} style={btn('#e8c84a', '#2a2220', { padding: '3px 9px', fontSize: '11px' })} onClick={() => handleRename(m)}>保存</button>
                   <button disabled={busy} style={btn('#e0dbd5', '#2a2220', { padding: '3px 9px', fontSize: '11px' })} onClick={cancelEdit}>キャンセル</button>
@@ -839,7 +883,12 @@ export default function Admin() {
               </>
             ) : (
               <>
-                <span style={{ flex: '1 1 100%', minWidth: 0, wordBreak: 'break-word', lineHeight: 1.5 }}>{m.value}</span>
+                <div style={{ flex: '1 1 100%', minWidth: 0 }}>
+                  <span style={{ wordBreak: 'break-word', lineHeight: 1.5 }}>{m.value}</span>
+                  {isVenue && (isHttpUrl(m.map_url)
+                    ? <div style={{ fontSize: '11px', marginTop: '2px' }}><a href={m.map_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2a5fa5' }}>🗺️ 地図を開く</a></div>
+                    : <div style={{ fontSize: '11px', color: '#b0a8a2', marginTop: '2px' }}>🗺️ 地図リンク未設定</div>)}
+                </div>
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                   <button disabled={busy || i === 0} style={arrowBtn(busy || i === 0)} onClick={() => handleMove(i, -1)} title="上へ">↑</button>
                   <button disabled={busy || i === list.length - 1} style={arrowBtn(busy || i === list.length - 1)} onClick={() => handleMove(i, 1)} title="下へ">↓</button>
@@ -850,12 +899,20 @@ export default function Admin() {
             )}
           </div>
         ))}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-          <input style={{ ...inputStyle, flex: 1 }} value={inputVal}
-            onChange={e => setInputVal(e.target.value)}
-            placeholder="新しい項目を入力"
-            onKeyDown={e => e.key === 'Enter' && handleAdd()} />
-          <button style={btn('#e8c84a', '#2a2220')} onClick={handleAdd}>＋追加</button>
+        <div style={{ marginTop: '14px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input style={{ ...inputStyle, flex: 1 }} value={inputVal}
+              onChange={e => setInputVal(e.target.value)}
+              placeholder="新しい項目を入力"
+              onKeyDown={e => e.key === 'Enter' && handleAdd()} />
+            <button style={btn('#e8c84a', '#2a2220')} onClick={handleAdd}>＋追加</button>
+          </div>
+          {isVenue && (
+            <input style={{ ...inputStyle, marginTop: '8px' }} value={inputUrl}
+              onChange={e => setInputUrl(e.target.value)}
+              placeholder="Googleマップのリンク（任意）"
+              onKeyDown={e => e.key === 'Enter' && handleAdd()} />
+          )}
         </div>
       </div>
     )
@@ -1485,6 +1542,40 @@ export default function Admin() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 備品管理（U-40担当／O-40担当のみ編集可。芦田さんは担当者の管理のため常に表示） */}
+      {tab === 'equipment' && (
+        <div>
+          {isTreasurerAdmin && (
+            <div style={{ background: 'white', borderRadius: '10px', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: '20px', border: '1.5px solid #e8c84a' }}>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#2a2220', marginBottom: '4px' }}>🔑 備品担当者の管理</div>
+              <div style={{ fontSize: '11.5px', color: '#8a7f7a', marginBottom: '12px' }}>
+                U-40担当／O-40担当それぞれの備品の編集権限を付与・解除できます（対象は既に管理者権限を持つメンバー。会計担当・試合メンバー編成担当と同じ運用です）
+              </div>
+              {members.filter(m => m.role === 'admin').map(m => (
+                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0ebe5', fontSize: '13px', flexWrap: 'wrap', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span>{m.name}</span>
+                    {teamBadge(m.team)}
+                    {m.equipment_editor_u40 && <span style={{ background: '#ede8f7', color: '#7b5ea7', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>U-40備品担当</span>}
+                    {m.equipment_editor_o40 && <span style={{ background: '#dceeff', color: '#2a5fa5', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '3px' }}>O-40備品担当</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button style={btn(m.equipment_editor_u40 ? '#e74c3c' : '#e8c84a', m.equipment_editor_u40 ? 'white' : '#2a2220', { padding: '4px 10px', fontSize: '11.5px' })} onClick={() => toggleEquipmentEditor(m.id, 'u40', !m.equipment_editor_u40)}>
+                      {m.equipment_editor_u40 ? 'U-40権限を外す' : 'U-40権限を付与'}
+                    </button>
+                    <button style={btn(m.equipment_editor_o40 ? '#e74c3c' : '#e8c84a', m.equipment_editor_o40 ? 'white' : '#2a2220', { padding: '4px 10px', fontSize: '11.5px' })} onClick={() => toggleEquipmentEditor(m.id, 'o40', !m.equipment_editor_o40)}>
+                      {m.equipment_editor_o40 ? 'O-40権限を外す' : 'O-40権限を付与'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {members.filter(m => m.role === 'admin').length === 0 && <div style={{ color: '#8a7f7a', fontSize: '12px' }}>管理者権限を持つメンバーがいません</div>}
+            </div>
+          )}
+          <AdminEquipment canU40={isEquipmentEditorU40} canO40={isEquipmentEditorO40} />
         </div>
       )}
 
