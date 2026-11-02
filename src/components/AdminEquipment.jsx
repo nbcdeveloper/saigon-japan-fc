@@ -31,12 +31,15 @@ const TEAMS = [
 
 const fmtDate = (d) => (d ? String(d).replace(/-/g, '/') : '')
 
+// 管理者は複数人を「、」区切りの1つの文字列で保存する（例：山田貴寛、池端亮治）
+const splitManagers = (v) => (v ? String(v).split(/[、,，]/).map(x => x.trim()).filter(Boolean) : [])
+
 export default function AdminEquipment({ canU40, canO40, members = [] }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [modal, setModal] = useState(null) // { team, item } item=nullなら新規追加
-  const [form, setForm] = useState({ updated_on: '', name: '', quantity: '', manager: '', memo: '' })
+  const [form, setForm] = useState({ updated_on: '', name: '', quantity: '', managers: [], memo: '' })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { fetchItems() }, [])
@@ -53,7 +56,7 @@ export default function AdminEquipment({ canU40, canO40, members = [] }) {
   }
 
   const openAdd = (team) => {
-    setForm({ updated_on: todayLocalStr(), name: '', quantity: '', manager: '', memo: '' })
+    setForm({ updated_on: todayLocalStr(), name: '', quantity: '', managers: [], memo: '' })
     setModal({ team, item: null })
   }
 
@@ -62,8 +65,9 @@ export default function AdminEquipment({ canU40, canO40, members = [] }) {
     setForm({
       updated_on: todayLocalStr(),
       name: item.name || '',
-      quantity: item.quantity || '',
-      manager: item.manager || '',
+      // 数量は数字のみ。以前の文字入りデータ（例：3着）は先頭の数字だけ引き継ぐ
+      quantity: /^\d+/.test(String(item.quantity ?? '')) ? String(parseInt(String(item.quantity), 10)) : '',
+      managers: splitManagers(item.manager),
       memo: item.memo || '',
     })
     setModal({ team, item })
@@ -84,8 +88,8 @@ export default function AdminEquipment({ canU40, canO40, members = [] }) {
     if (!name) { window.alert('備品名を入力してください'); return }
     const payload = {
       name,
-      quantity: form.quantity.trim() || null,
-      manager: form.manager.trim() || null,
+      quantity: form.quantity === '' || isNaN(parseInt(form.quantity, 10)) ? null : Math.max(0, parseInt(form.quantity, 10)),
+      manager: form.managers.length > 0 ? form.managers.join('、') : null,
       memo: form.memo.trim() || null,
       updated_on: form.updated_on || todayLocalStr(),
     }
@@ -135,7 +139,9 @@ export default function AdminEquipment({ canU40, canO40, members = [] }) {
   return (
     <div>
       {TEAMS.map(t => {
-        const list = items.filter(i => i.team === t.key)
+        // 更新日が新しいものを上に。同じ日付の中は登録順
+        const list = items.filter(i => i.team === t.key).sort((a, b) =>
+          (b.updated_on || '').localeCompare(a.updated_on || '') || ((a.sort_order || 0) - (b.sort_order || 0)))
         const canEdit = t.key === 'u40' ? canU40 : canO40
         const latest = list.reduce((a, i) => (i.updated_on && i.updated_on > a ? i.updated_on : a), '')
         const headers = ['更新日', '備品名', '数量', '管理者', 'メモ', ...(canEdit ? ['操作'] : [])]
@@ -169,7 +175,7 @@ export default function AdminEquipment({ canU40, canO40, members = [] }) {
                       <tr key={item.id} style={{ borderBottom: '1px solid #f0ebe5', verticalAlign: 'top' }}>
                         <td style={{ padding: '9px 10px', whiteSpace: 'nowrap', color: '#8a7f7a' }}>{fmtDate(item.updated_on)}</td>
                         <td style={{ padding: '9px 10px', fontWeight: '600', color: '#2a2220', wordBreak: 'break-word' }}>{item.name}</td>
-                        <td style={{ padding: '9px 10px', wordBreak: 'break-word' }}>{item.quantity || '-'}</td>
+                        <td style={{ padding: '9px 10px', wordBreak: 'break-word' }}>{item.quantity ?? '-'}</td>
                         <td style={{ padding: '9px 10px', wordBreak: 'break-word' }}>{item.manager || '-'}</td>
                         <td style={{ padding: '9px 10px', color: '#555', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5 }}>{item.memo || ''}</td>
                         {canEdit && (
@@ -204,19 +210,34 @@ export default function AdminEquipment({ canU40, canO40, members = [] }) {
               <input style={inputStyle} value={form.name} autoFocus onChange={e => setForm({ ...form, name: e.target.value })} placeholder="例：ビブス" />
             </div>
             <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>数量</label>
-              <input style={inputStyle} value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} placeholder="例：10、黄5・青7、3着" />
+              <label style={labelStyle}>数量（数字のみ）</label>
+              <input type="number" inputMode="numeric" min="0" step="1" style={inputStyle} value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} placeholder="例：10" />
             </div>
             <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>管理者</label>
-              <select style={inputStyle} value={form.manager} onChange={e => setForm({ ...form, manager: e.target.value })}>
-                <option value="">（未設定）</option>
-                {/* 以前に手入力された名前など、メンバー名と一致しない値もそのまま残して選べるようにする */}
-                {form.manager && !managerOptions(modal.team).includes(form.manager) && (
-                  <option value={form.manager}>{form.manager}（現在の値）</option>
-                )}
-                {managerOptions(modal.team).map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <label style={labelStyle}>管理者（複数選択できます）</label>
+              {(() => {
+                const options = managerOptions(modal.team)
+                // 以前に手入力された名前など、メンバー名と一致しない値も、外せるように残して表示する
+                const legacy = form.managers.filter(n => !options.includes(n))
+                const all = [...legacy, ...options]
+                const toggle = (n) => setForm({ ...form, managers: form.managers.includes(n) ? form.managers.filter(x => x !== n) : [...form.managers, n] })
+                return (
+                  <>
+                    <div style={{ border: '1.5px solid #e0dbd5', borderRadius: '6px', padding: '6px 10px', maxHeight: '170px', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '2px 10px' }}>
+                      {all.length === 0 && <div style={{ color: '#8a7f7a', fontSize: '12px', padding: '4px 0' }}>選べるメンバーがいません</div>}
+                      {all.map(n => (
+                        <label key={n} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '4px 0', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={form.managers.includes(n)} onChange={() => toggle(n)} />
+                          <span>{n}{legacy.includes(n) ? '（現在の値）' : ''}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#8a7f7a', marginTop: '4px' }}>
+                      選択中：{form.managers.length > 0 ? form.managers.join('、') : 'なし'}
+                    </div>
+                  </>
+                )
+              })()}
             </div>
             <div style={{ marginBottom: '18px' }}>
               <label style={labelStyle}>メモ</label>
