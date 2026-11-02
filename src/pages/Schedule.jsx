@@ -24,6 +24,7 @@ export default function Schedule() {
   const [userId, setUserId] = useState(null)
   const [showPast, setShowPast] = useState(false)
   const [expandedEvents, setExpandedEvents] = useState({})
+  const [venueUrls, setVenueUrls] = useState({}) // 場所名 → Googleマップのリンク（場所マスタ）
 
   // カレンダー表示
   const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
@@ -50,12 +51,31 @@ export default function Schedule() {
     if (upcoming) setUpcomingEvents(upcoming)
     if (past) setPastEvents(past)
     if (allMembers) setMembers(allMembers)
+    fetchVenueUrls()
     const allIds = [...(upcoming || []), ...(past || [])].map(e => e.id)
     if (allIds.length > 0) {
       fetchMyAttendance(uid, allIds)
       fetchAttendanceData(allIds, allMembers || [], [...(upcoming || []), ...(past || [])])
     }
     setLoading(false)
+  }
+
+  // 場所マスタのGoogleマップリンクを取得（列が未作成・取得失敗のときは何もしない＝場所は従来どおり文字だけ表示）
+  const fetchVenueUrls = async () => {
+    const { data, error } = await supabase.from('masters').select('value, map_url').eq('category', 'venue')
+    if (error || !data) return
+    const map = {}
+    data.forEach(r => { if (r.map_url) map[r.value] = r.map_url })
+    setVenueUrls(map)
+  }
+
+  // 場所名の表示。リンクが登録されていれば、押すとGoogleマップが新しいタブ（スマホは地図アプリ）で開く
+  const venueLabel = (venue) => {
+    const url = venueUrls[venue]
+    if (url && /^https?:\/\//i.test(url)) {
+      return <a href={url} target="_blank" rel="noopener noreferrer" title="Googleマップで開く" style={{ color: '#2a5fa5', textDecoration: 'underline' }}>📍 {venue}</a>
+    }
+    return <>📍 {venue}</>
   }
 
   useEffect(() => {
@@ -214,11 +234,11 @@ export default function Schedule() {
                     {ev.end_time ? ` 〜 ${ev.end_time.slice(0,5)}` : ''}
                   </span>
                   {ev.venue && <span style={{ color: '#8a7f7a' }}>｜</span>}
-                  {ev.venue && <span style={{ color: '#555' }}>📍 {ev.venue}</span>}
+                  {ev.venue && <span style={{ color: '#555' }}>{venueLabel(ev.venue)}</span>}
                 </div>
               )}
               {!ev.kickoff_time && ev.venue && (
-                <div style={{ fontSize: '12.5px', color: '#555' }}>📍 {ev.venue}</div>
+                <div style={{ fontSize: '12.5px', color: '#555' }}>{venueLabel(ev.venue)}</div>
               )}
               {(ev.meetup_place || ev.meetup_time) && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
