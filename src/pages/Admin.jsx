@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import AdminPayments from '../components/AdminPayments'
 import AdminMatchLineup from '../components/AdminMatchLineup'
 import AdminEquipment from '../components/AdminEquipment'
+import AdminEntries from '../components/AdminEntries'
 
 const btn = (bg, color, extra = {}) => ({
   padding: '7px 14px', background: bg, color, border: 'none',
@@ -119,6 +120,7 @@ export default function Admin() {
   const [isLineupEditorU40, setIsLineupEditorU40] = useState(false)
   const [isLineupEditorO40, setIsLineupEditorO40] = useState(false)
   const [isEquipmentEditorU40, setIsEquipmentEditorU40] = useState(false)
+  const [pendingEntries, setPendingEntries] = useState(0)
   const [isEquipmentEditorO40, setIsEquipmentEditorO40] = useState(false)
   const [currentUserId, setCurrentUserId] = useState(null)
   const [wallets, setWallets] = useState([])
@@ -147,6 +149,7 @@ export default function Admin() {
     const { data } = await supabase.from('profiles').select('role, is_treasurer, lineup_editor_u40, lineup_editor_o40').eq('id', user.id).single()
     if (data?.role === 'admin') {
       setIsAdmin(true)
+      fetchPendingEntries()
       fetchMembers()
       fetchEvents()
       fetchMatches()
@@ -172,6 +175,12 @@ export default function Admin() {
     }
     if (user.email === 'vespa9304@gmail.com') setIsTreasurerAdmin(true)
     setLoading(false)
+  }
+
+  // 入部申請の「承認待ち」件数（タブのバッジ用。テーブル未作成でも画面全体が壊れないよう、エラーは無視）
+  const fetchPendingEntries = async () => {
+    const { count, error } = await supabase.from('entry_applications').select('id', { count: 'exact', head: true }).eq('status', 'pending')
+    if (!error) setPendingEntries(count || 0)
   }
 
   const fetchMembers = async () => {
@@ -736,6 +745,7 @@ export default function Admin() {
   const TABS = [
     ['schedule', '📅 スケジュール'],
     ['members', '👥 メンバー'],
+    ['entries', pendingEntries > 0 ? `\u{1F4DD} 入部申請（${pendingEntries}）` : '\u{1F4DD} 入部申請'],
     ['matches', '🏆 試合結果'],
     ['sefa', '⚽ SEFA S11'],
     ['payments', '💴 部費'],
@@ -1544,6 +1554,9 @@ export default function Admin() {
           )}
         </div>
       )}
+
+      {/* 入部申請（フォームから届いた申込の承認・却下） */}
+      {tab === 'entries' && <AdminEntries onChanged={() => { fetchPendingEntries(); fetchMembers() }} />}
 
       {/* 備品管理（U-40担当／O-40担当のみ編集可。芦田さんは担当者の管理のため常に表示） */}
       {tab === 'equipment' && (
