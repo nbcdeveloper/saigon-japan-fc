@@ -18,6 +18,7 @@ import U40Policy from './pages/U40Policy'
 import SNS from './pages/SNS'
 import MyPage from './pages/MyPage'
 import Admin from './pages/Admin'
+import EntryForm from './pages/EntryForm'
 import Layout from './components/Layout'
 
 function App() {
@@ -47,6 +48,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* 入部申込フォーム：ログイン不要の公開ページ */}
+        <Route path="/entry" element={<EntryForm />} />
         <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
         <Route path="/" element={session ? <Layout session={session} /> : <Navigate to="/login" />}>
           <Route index element={<Dashboard />} />
