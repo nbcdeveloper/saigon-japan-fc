@@ -4,6 +4,7 @@ import AdminPayments from '../components/AdminPayments'
 import AdminMatchLineup from '../components/AdminMatchLineup'
 import AdminEquipment from '../components/AdminEquipment'
 import AdminEntries from '../components/AdminEntries'
+import AdminRoster from '../components/AdminRoster'
 
 const btn = (bg, color, extra = {}) => ({
   padding: '7px 14px', background: bg, color, border: 'none',
@@ -745,6 +746,7 @@ export default function Admin() {
   const TABS = [
     ['schedule', '📅 スケジュール'],
     ['members', '👥 メンバー'],
+    ['roster', '🚑 部員リスト'],
     ['entries', pendingEntries > 0 ? `\u{1F4DD} 入部申請（${pendingEntries}）` : '\u{1F4DD} 入部申請'],
     ['matches', '🏆 試合結果'],
     ['sefa', '⚽ SEFA S11'],
@@ -1556,6 +1558,8 @@ export default function Admin() {
       )}
 
       {/* 入部申請（フォームから届いた申込の承認・却下） */}
+      {tab === 'roster' && <AdminRoster members={members} />}
+
       {tab === 'entries' && <AdminEntries onChanged={() => { fetchPendingEntries(); fetchMembers() }} />}
 
       {/* 備品管理（U-40担当／O-40担当のみ編集可。芦田さんは担当者の管理のため常に表示） */}

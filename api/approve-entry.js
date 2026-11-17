@@ -150,6 +150,16 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'メンバー登録に失敗しました：' + upsertErr.message })
   }
 
+  // 申込の連絡先をマイページの連絡先（member_contacts）にも写しておく。
+  // 本人がすでに登録している場合は上書きしない。テーブル未作成などで失敗しても承認は続ける。
+  await admin.from('member_contacts').upsert({
+    profile_id: userId,
+    phone: app.phone || null,
+    emergency_name: app.emergency_name || null,
+    emergency_relation: app.emergency_relation || null,
+    emergency_phone: app.emergency_phone || null,
+  }, { onConflict: 'profile_id', ignoreDuplicates: true }).then(() => {}, () => {})
+
   // --- 申請を承認済みに更新（二重承認防止のため pending のものだけ）---
   const { error: doneErr } = await admin
     .from('entry_applications')

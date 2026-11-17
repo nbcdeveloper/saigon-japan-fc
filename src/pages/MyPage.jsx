@@ -21,8 +21,46 @@ export default function MyPage() {
   const [pwSaving, setPwSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [pwMessage, setPwMessage] = useState('')
+  // 連絡先・緊急連絡先（member_contacts。本人と管理者だけが読める）
+  const [contact, setContact] = useState({ phone: '', emergency_name: '', emergency_relation: '', emergency_phone: '' })
+  const [contactReady, setContactReady] = useState(false) // テーブル未作成なら欄を出さない
+  const [contactSaving, setContactSaving] = useState(false)
+  const [contactMessage, setContactMessage] = useState('')
 
-  useEffect(() => { fetchProfile() }, [])
+  useEffect(() => { fetchProfile(); fetchContact() }, [])
+
+  const fetchContact = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data, error } = await supabase.from('member_contacts').select('*').eq('profile_id', user.id).maybeSingle()
+    if (error) return // テーブル未作成など
+    if (data) setContact({
+      phone: data.phone || '', emergency_name: data.emergency_name || '',
+      emergency_relation: data.emergency_relation || '', emergency_phone: data.emergency_phone || '',
+    })
+    setContactReady(true)
+  }
+
+  const saveContact = async () => {
+    const c = Object.fromEntries(Object.entries(contact).map(([k, v]) => [k, v.trim()]))
+    const telOk = (v) => /^[0-9+\-\s()]{6,40}$/.test(v)
+    if (c.phone && !telOk(c.phone)) return setContactMessage('❌ 携帯番号は数字・+・- で入力してください')
+    if (!c.emergency_name) return setContactMessage('❌ 緊急連絡先の氏名を入力してください')
+    if (!c.emergency_phone || c.emergency_phone.length < 6) return setContactMessage('❌ 緊急連絡先の電話番号を入力してください')
+    setContactSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase.from('member_contacts').upsert({
+      profile_id: user.id,
+      phone: c.phone || null,
+      emergency_name: c.emergency_name,
+      emergency_relation: c.emergency_relation || null,
+      emergency_phone: c.emergency_phone,
+      updated_at: new Date().toISOString(),
+    })
+    setContactSaving(false)
+    setContactMessage(error ? '❌ 保存に失敗しました' : '✅ 緊急連絡先を保存しました')
+    setTimeout(() => setContactMessage(''), 3000)
+  }
 
   const fetchProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -169,6 +207,42 @@ export default function MyPage() {
         </button>
         <p style={{ fontSize: '11px', color: '#8a7f7a', marginTop: '10px' }}>※ チーム・背番号は管理者のみ変更できます</p>
       </div>
+
+      {/* 連絡先・緊急連絡先 */}
+      {contactReady && (
+        <div style={{ background: 'white', borderRadius: '10px', padding: '22px 24px', marginBottom: '18px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', borderLeft: (contact.emergency_phone ? '' : '4px solid #e74c3c') }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '1.5px', marginBottom: '6px' }}>
+            🚑 連絡先・緊急連絡先
+          </div>
+          <p style={{ fontSize: '12px', color: '#8a7f7a', margin: '0 0 14px', lineHeight: 1.7 }}>
+            試合や練習中のケガ・事故に備えて登録をお願いします。ここに入力した内容は<b>管理者だけ</b>が見られます（ほかの部員には表示されません）。
+            {!contact.emergency_phone && <><br /><span style={{ color: '#e74c3c', fontWeight: 700 }}>まだ緊急連絡先が登録されていません。</span></>}
+          </p>
+          <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+            <div style={{ gridColumn: '1/-1' }}>
+              <label style={labelStyle}>本人の携帯番号（ベトナム）</label>
+              <input style={inputStyle} type="tel" inputMode="tel" value={contact.phone} onChange={e => setContact({ ...contact, phone: e.target.value })} placeholder="例：090-123-4567" />
+            </div>
+            <div>
+              <label style={labelStyle}>緊急連絡先 氏名 *</label>
+              <input style={inputStyle} value={contact.emergency_name} onChange={e => setContact({ ...contact, emergency_name: e.target.value })} placeholder="例：田中 花子" />
+            </div>
+            <div>
+              <label style={labelStyle}>続柄</label>
+              <input style={inputStyle} value={contact.emergency_relation} onChange={e => setContact({ ...contact, emergency_relation: e.target.value })} placeholder="例：妻／会社" />
+            </div>
+            <div style={{ gridColumn: '1/-1' }}>
+              <label style={labelStyle}>緊急連絡先 電話番号 *</label>
+              <input style={inputStyle} type="tel" inputMode="tel" value={contact.emergency_phone} onChange={e => setContact({ ...contact, emergency_phone: e.target.value })} placeholder="例：+84 90-123-4567 / +81 90-1234-5678" />
+            </div>
+          </div>
+          {contactMessage && <div style={{ fontSize: '13px', marginBottom: '12px', color: contactMessage.includes('✅') ? '#27ae60' : '#e74c3c' }}>{contactMessage}</div>}
+          <button onClick={saveContact} disabled={contactSaving}
+            style={{ padding: '9px 20px', background: '#e8c84a', color: '#2a2220', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>
+            {contactSaving ? '保存中...' : '保存する'}
+          </button>
+        </div>
+      )}
 
       {/* パスワード変更 */}
       <div style={{ background: 'white', borderRadius: '10px', padding: '22px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
