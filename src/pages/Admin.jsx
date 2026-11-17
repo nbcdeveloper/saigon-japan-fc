@@ -746,7 +746,6 @@ export default function Admin() {
   const TABS = [
     ['schedule', '📅 スケジュール'],
     ['members', '👥 メンバー'],
-    ['roster', '🚑 部員リスト'],
     ['entries', pendingEntries > 0 ? `\u{1F4DD} 入部申請（${pendingEntries}）` : '\u{1F4DD} 入部申請'],
     ['matches', '🏆 試合結果'],
     ['sefa', '⚽ SEFA S11'],
@@ -758,6 +757,7 @@ export default function Admin() {
     ...(isTreasurer ? [['accounting', '💰 会計']] : []),
     ...((isEquipmentEditorU40 || isEquipmentEditorO40 || isTreasurerAdmin) ? [['equipment', '🧰 備品管理']] : []),
     ['master', '⚙️ マスタ'],
+    ...(isTreasurerAdmin ? [['roster', '📇 部員情報']] : []),
   ]
 
   const adminTabStyle = (t) => ({
@@ -934,7 +934,7 @@ export default function Admin() {
   if (!isAdmin) return <div style={{ background: 'white', borderRadius: '10px', padding: '40px', textAlign: 'center', color: '#e74c3c' }}>⚠️ 管理者権限が必要です</div>
 
   return (
-    <div style={{ fontFamily: 'sans-serif' }}>
+    <div>
       <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2a2220', letterSpacing: '2px', marginBottom: '20px' }}>
         管理者設定 <span style={{ background: '#e8c84a', color: '#2a2220', fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '3px', verticalAlign: 'middle' }}>ADMIN</span>
       </div>
@@ -1558,7 +1558,7 @@ export default function Admin() {
       )}
 
       {/* 入部申請（フォームから届いた申込の承認・却下） */}
-      {tab === 'roster' && <AdminRoster members={members} />}
+      {tab === 'roster' && isTreasurerAdmin && <AdminRoster members={members} />}
 
       {tab === 'entries' && <AdminEntries onChanged={() => { fetchPendingEntries(); fetchMembers() }} />}
 
