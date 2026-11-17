@@ -8,9 +8,9 @@ import { supabase } from '../supabase'
 const GOLD = '#e8c84a'
 const LINE = '#e0dbd5'
 
-const box = { background: 'white', border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, marginBottom: 12 }
-const btn = (bg, fg = '#2a2220') => ({ background: bg, color: fg, border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 14, fontWeight: 700, cursor: 'pointer' })
-const input = { background: '#faf7f3', color: '#2a2220', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', fontSize: 15, boxSizing: 'border-box' }
+const box = { background: 'white', borderRadius: 10, padding: '18px 22px', marginBottom: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }
+const btn = (bg, fg = '#2a2220') => ({ background: bg, color: fg, border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' })
+const input = { background: 'white', color: '#2a2220', border: '1.5px solid #e0dbd5', borderRadius: 6, padding: '8px 10px', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 
 const STATUS_LABEL = { pending: '承認待ち', approved: '承認済み', rejected: '却下' }
 
@@ -33,7 +33,7 @@ const fmtDate = (iso) => {
 function Row({ k, v, tel }) {
   if (!v) return null
   return (
-    <div style={{ display: 'flex', gap: 8, fontSize: 14, lineHeight: 1.7 }}>
+    <div style={{ display: 'flex', gap: 8, fontSize: 13, lineHeight: 1.7 }}>
       <div style={{ width: 118, flexShrink: 0, color: '#8a7f7a' }}>{k}</div>
       <div style={{ flex: 1, wordBreak: 'break-all' }}>
         {tel ? <a href={`tel:${String(v).replace(/[^0-9+]/g, '')}`} style={{ color: '#8a6d00', fontWeight: 600 }}>{v}</a> : v}
@@ -143,7 +143,7 @@ export default function AdminEntries({ onChanged }) {
 
   return (
     <div>
-      <p style={{ fontSize: 13, color: '#8a7f7a', lineHeight: 1.7, margin: '0 0 12px' }}>
+      <p style={{ fontSize: 12, color: '#8a7f7a', lineHeight: 1.7, margin: '0 0 12px' }}>
         入部フォーム（saigonjapanfc.com/entry）から届いた申込です。電話番号・緊急連絡先は管理者だけに表示されます。
         承認するとログインアカウントとメンバー登録が自動で作られます。
       </p>
@@ -158,16 +158,16 @@ export default function AdminEntries({ onChanged }) {
         <button onClick={load} style={{ ...btn('#faf7f3', '#2a2220'), border: `1px solid ${LINE}` }}>更新</button>
       </div>
 
-      {error && <div style={{ background: '#fde8e6', border: '1px solid #e8a59d', color: '#c0392b', borderRadius: 8, padding: '10px 12px', fontSize: 14, marginBottom: 12 }}>{error}</div>}
+      {error && <div style={{ background: '#fde8e6', border: '1px solid #e8a59d', color: '#c0392b', borderRadius: 6, padding: '10px 12px', fontSize: 12.5, marginBottom: 12 }}>{error}</div>}
 
       {result && (
         <div style={{ ...box, border: `2px solid ${GOLD}` }}>
           <div style={{ color: '#1a7a40', fontWeight: 800, marginBottom: 6 }}>{result.name} さんを承認しました（部員番号 {result.member_no}）</div>
-          <p style={{ fontSize: 13, color: '#5a4f4a', lineHeight: 1.7, margin: '0 0 8px' }}>
+          <p style={{ fontSize: 12.5, color: '#5a4f4a', lineHeight: 1.7, margin: '0 0 8px' }}>
             仮パスワードはこの画面でしか表示されません。下の文面をコピーして、本人にLINE等でお送りください。
             {result.reused && '（このメールアドレスのログインはすでに存在していたため、パスワードを新しく設定し直しました）'}
           </p>
-          <pre style={{ whiteSpace: 'pre-wrap', background: '#faf7f3', border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, fontSize: 14, margin: '0 0 8px', fontFamily: 'inherit' }}>{loginText(result)}</pre>
+          <pre style={{ whiteSpace: 'pre-wrap', background: '#faf7f3', border: `1px solid ${LINE}`, borderRadius: 6, padding: 10, fontSize: 13, margin: '0 0 8px', fontFamily: 'inherit' }}>{loginText(result)}</pre>
           <div style={{ display: 'flex', gap: 8 }}>
             <button style={btn(GOLD)} onClick={() => copy(loginText(result))}>{copied ? 'コピーしました' : '文面をコピー'}</button>
             <button style={{ ...btn('#faf7f3', '#2a2220'), border: `1px solid ${LINE}` }} onClick={() => setResult(null)}>閉じる</button>
@@ -182,8 +182,8 @@ export default function AdminEntries({ onChanged }) {
         <div key={r.id} style={box}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
             <div>
-              <span style={{ fontSize: 17, fontWeight: 800 }}>{r.name}</span>
-              <span style={{ fontSize: 13, color: '#8a7f7a', marginLeft: 8 }}>{r.name_kana}</span>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>{r.name}</span>
+              <span style={{ fontSize: 12, color: '#8a7f7a', marginLeft: 8 }}>{r.name_kana}</span>
             </div>
             <div style={{ fontSize: 12, color: '#8a7f7a' }}>申込 {fmtDate(r.created_at)}</div>
           </div>
@@ -217,11 +217,11 @@ export default function AdminEntries({ onChanged }) {
               )}
 
               {openId === r.id && (
-                <div style={{ background: '#faf7f3', border: `1px solid ${GOLD}`, borderRadius: 8, padding: 12 }}>
-                  <div style={{ fontSize: 14, marginBottom: 8, lineHeight: 1.7 }}>
+                <div style={{ background: '#faf7f3', border: `1px solid ${GOLD}`, borderRadius: 6, padding: 12 }}>
+                  <div style={{ fontSize: 13, marginBottom: 8, lineHeight: 1.7 }}>
                     ログインアカウントとメンバー登録を作成します。仮パスワードは自動で作られ、承認後に一度だけ表示されます。
                   </div>
-                  <label style={{ fontSize: 13, color: '#5a4f4a' }}>部員番号（変更できます）</label>
+                  <label style={{ fontSize: 11.5, color: '#5a4f4a' }}>部員番号（変更できます）</label>
                   <div style={{ display: 'flex', gap: 8, margin: '4px 0 10px', alignItems: 'center' }}>
                     <input style={{ ...input, width: 110 }} type="number" min="1" value={memberNo} onChange={(e) => setMemberNo(e.target.value)} />
                   </div>
@@ -233,8 +233,8 @@ export default function AdminEntries({ onChanged }) {
               )}
 
               {rejectId === r.id && (
-                <div style={{ background: '#faf7f3', border: `1px solid ${LINE}`, borderRadius: 8, padding: 12 }}>
-                  <label style={{ fontSize: 13, color: '#5a4f4a' }}>却下の理由（任意・内部メモ）</label>
+                <div style={{ background: '#faf7f3', border: `1px solid ${LINE}`, borderRadius: 6, padding: 12 }}>
+                  <label style={{ fontSize: 11.5, color: '#5a4f4a' }}>却下の理由（任意・内部メモ）</label>
                   <input style={{ ...input, width: '100%', margin: '4px 0 10px' }} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="例）重複申込 / 連絡がつかない" />
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button style={{ ...btn('#c0392b', '#fff'), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => reject(r)}>却下する</button>
