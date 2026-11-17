@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './supabase'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -20,6 +20,20 @@ import MyPage from './pages/MyPage'
 import Admin from './pages/Admin'
 import EntryForm from './pages/EntryForm'
 import Layout from './components/Layout'
+
+// Google Analytics：画面が切り替わるたびに page_view を送る（URLのクエリや#以降は送らない）
+function PageViewTracker() {
+  const location = useLocation()
+  useEffect(() => {
+    if (typeof window.gtag !== 'function') return
+    window.gtag('event', 'page_view', {
+      page_location: window.location.origin + location.pathname,
+      page_path: location.pathname,
+      page_title: document.title,
+    })
+  }, [location.pathname])
+  return null
+}
 
 function App() {
   const [session, setSession] = useState(null)
@@ -47,6 +61,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <PageViewTracker />
       <Routes>
         {/* 入部申込フォーム：ログイン不要の公開ページ */}
         <Route path="/entry" element={<EntryForm />} />
